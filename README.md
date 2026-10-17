@@ -129,3 +129,25 @@ chmod +x backup.sh
 - Exports compressed PostgreSQL dumps (`powertech_backup_YYYYMMDD_HHMMSS.sql.gz`).
 - Verifies archive integrity and non-zero file size.
 - Automatically cleans up archives older than 30 days retention.
+
+---
+
+## Deploy to Vercel
+
+### 1-Click Direct Import
+You can directly import and deploy the frontend using this pre-configured Vercel link:
+
+[Deploy Powertech CRM on Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fsmiteshsp7333%2FPowertech-CRM&root-directory=frontend&env=NEXT_PUBLIC_API_URL&envDescription=Hosted%20Backend%20API%20URL)
+
+### Manual Import Steps
+1. Navigate to [Vercel Dashboard](https://vercel.com/new).
+2. Select repository `smiteshsp7333/Powertech-CRM`.
+3. In **Project Settings**:
+   - **Root Directory**: `frontend`
+   - **Framework Preset**: `Next.js`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `.next`
+4. In **Environment Variables**:
+   - `NEXT_PUBLIC_API_URL`: Your backend API URL (e.g. `https://your-api.com/api`).
+5. Click **Deploy**.
+
