@@ -1,0 +1,448 @@
+// Powertech ERP & CRM - Prisma Database Schema (Production PostgreSQL)
+// Database: PostgreSQL with Prisma migrations
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  isActive     Boolean   @default(true)
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignedEnquiries Enquiry[]         @relation("EnquiryAssignedTo")
+  createdEnquiries  Enquiry[]         @relation("EnquiryCreatedBy")
+  quotations        Quotation[]
+  orders            Order[]
+  dispatches        Dispatch[]
+  invoices          Invoice[]
+  payments          Payment[]
+  purchases         Purchase[]
+  auditLogs         AuditLog[]
+  completionPhotos  CompletionPhoto[]
+  dailyAdjustments  DailyAdjustment[]
+  dailySummaryLocks DailySummaryLock[]
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  isSystem    Boolean          @default(false)
+  isDeleted   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id        String   @id @default(uuid())
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module    String   // ENQUIRY, QUOTATION, ORDER, DISPATCH, BILLING, PURCHASE, DAILY_SUMMARY, REPORT, USER_ROLE, SETTING
+  canView   Boolean  @default(false)
+  canCreate Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  canExport Boolean  @default(false)
+  dataScope String   @default("ALL") // "OWN" or "ALL"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleId, module])
+}
+
+model Customer {
+  id           String      @id @default(uuid())
+  customerType String      @default("COMPANY") // "INDIVIDUAL" or "COMPANY"
+  name         String
+  companyName  String?
+  phone        String
+  email        String?
+  address      String?
+  city         String?
+  state        String?
+  pincode      String?
+  gstin        String?
+  isDeleted    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  enquiries    Enquiry[]
+  quotations   Quotation[]
+  orders       Order[]
+  invoices     Invoice[]
+}
+
+model Supplier {
+  id          String     @id @default(uuid())
+  name        String
+  companyName String?
+  phone       String
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  pincode     String?
+  gstin       String?
+  isDeleted   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  purchases   Purchase[]
+}
+
+model NumberSequence {
+  id            String   @id @default(uuid())
+  module        String   // ENQUIRY, QUOTATION, ORDER, DISPATCH, INVOICE, PAYMENT, PURCHASE
+  prefix        String
+  year          String
+  lastSequence  Int      @default(0)
+  formatPattern String   // e.g. "{PREFIX}-{YEAR}-{SEQ:5}" or "{PREFIX}-{YEAR_YY}-{SEQ:5}"
+  updatedAt     DateTime @updatedAt
+
+  @@unique([module, year])
+}
+
+model Enquiry {
+  id             String            @id @default(uuid())
+  enquiryNumber  String            @unique
+  enquiryDate    DateTime          @default(now())
+  customerId     String?
+  customer       Customer?         @relation(fields: [customerId], references: [id])
+  customerType   String            @default("COMPANY") // "INDIVIDUAL" or "COMPANY"
+  customerName   String
+  phone          String
+  address        String?
+  requirements   String
+  remarks        String?
+  status         String            @default("OPEN") // OPEN, QUOTATION_PREPARED, ORDER_PLACED, CLOSED_LOST
+  assignedUserId String?
+  assignedUser   User?             @relation("EnquiryAssignedTo", fields: [assignedUserId], references: [id])
+  createdById    String
+  createdBy      User              @relation("EnquiryCreatedBy", fields: [createdById], references: [id])
+  isDeleted      Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  quotations     Quotation[]
+  orders         Order[]
+  timeline       EnquiryTimeline[]
+}
+
+model EnquiryTimeline {
+  id            String   @id @default(uuid())
+  enquiryId     String
+  enquiry       Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  action        String
+  description   String
+  performedBy   String
+  createdAt     DateTime @default(now())
+}
+
+model Quotation {
+  id                  String              @id @default(uuid())
+  quotationNumber     String              // Base number e.g. QTN-2026-00001
+  revisionNumber      Int                 @default(0)
+  fullNumber          String              @unique // QTN-2026-00001 or QTN-2026-00001-R1
+  enquiryId           String?
+  enquiry             Enquiry?            @relation(fields: [enquiryId], references: [id])
+  customerId          String
+  customer            Customer            @relation(fields: [customerId], references: [id])
+  quotationDate       DateTime            @default(now())
+  validUntil          DateTime?
+  subtotal            Float               @default(0)
+  discountType        String              @default("PERCENT") // "PERCENT" or "FIXED"
+  discountValue       Float               @default(0)
+  discountAmount      Float               @default(0)
+  taxRate             Float               @default(18) // GST percentage
+  taxAmount           Float               @default(0)
+  totalAmount         Float               @default(0)
+  specificationNotes  String?
+  termsAndConditions  String?
+  status              String              @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, CONVERTED_TO_ORDER
+  createdById         String
+  createdBy           User                @relation(fields: [createdById], references: [id])
+  isDeleted           Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  items               QuotationItem[]
+  revisions           QuotationRevision[]
+  orders              Order[]
+}
+
+model QuotationItem {
+  id              String    @id @default(uuid())
+  quotationId     String
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  itemDescription String
+  specification   String?
+  quantity        Float     @default(1)
+  unit            String    @default("Nos")
+  rate            Float     @default(0)
+  amount          Float     @default(0)
+  sortOrder       Int       @default(0)
+}
+
+model QuotationRevision {
+  id             String    @id @default(uuid())
+  quotationId    String
+  quotation      Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  revisionNumber Int
+  fullNumber     String
+  snapshotData   String    // JSON string of quotation + items
+  reason         String?
+  createdById    String
+  createdAt      DateTime  @default(now())
+}
+
+model Order {
+  id                 String            @id @default(uuid())
+  orderNumber        String            @unique
+  orderDate          DateTime          @default(now())
+  enquiryId          String?
+  enquiry            Enquiry?          @relation(fields: [enquiryId], references: [id])
+  quotationId        String?
+  quotation          Quotation?        @relation(fields: [quotationId], references: [id])
+  customerId         String
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  subtotal           Float             @default(0)
+  discountAmount     Float             @default(0)
+  taxAmount          Float             @default(0)
+  totalAmount        Float             @default(0)
+  agreedPaymentTerms String?
+  dueDays            Int               @default(30)
+  status             String            @default("PLACED") // PLACED, CONFIRMED, IN_PROGRESS, READY_FOR_DISPATCH, DISPATCHED, DELIVERED, COMPLETED, CANCELLED
+  cancellationReason String?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  createdById        String
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  isDeleted          Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  items              OrderItem[]
+  dispatches         Dispatch[]
+  invoices           Invoice[]
+  completionPhotos   CompletionPhoto[]
+}
+
+model OrderItem {
+  id              String         @id @default(uuid())
+  orderId         String
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemDescription String
+  specification   String?
+  quantity        Float          @default(1)
+  unit            String         @default("Nos")
+  rate            Float          @default(0)
+  amount          Float          @default(0)
+  dispatchedQty   Float          @default(0)
+  sortOrder       Int            @default(0)
+  dispatchItems   DispatchItem[]
+}
+
+model Dispatch {
+  id                   String         @id @default(uuid())
+  dispatchNumber       String         @unique
+  dispatchDate         DateTime       @default(now())
+  orderId              String
+  order                Order          @relation(fields: [orderId], references: [id])
+  transportCourier     String?
+  trackingNumber       String?
+  deliveryAddress      String?
+  expectedDeliveryDate DateTime?
+  actualDeliveryDate   DateTime?
+  actualDeliveryTime   String?
+  deliveryStatus       String         @default("PENDING") // PENDING, DISPATCHED, DELIVERED, DELAYED
+  remarks              String?
+  createdById          String
+  createdBy            User           @relation(fields: [createdById], references: [id])
+  isDeleted            Boolean        @default(false)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  items                DispatchItem[]
+}
+
+model DispatchItem {
+  id          String    @id @default(uuid())
+  dispatchId  String
+  dispatch    Dispatch  @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  quantity    Float     @default(1)
+}
+
+model CompletionPhoto {
+  id           String    @id @default(uuid())
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id])
+  fileName     String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  filePath     String
+  thumbnailUrl String?
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  isDeleted    Boolean   @default(false)
+  deletedById  String?
+  deletedAt    DateTime?
+  deleteReason String?
+  createdAt    DateTime  @default(now())
+}
+
+model Invoice {
+  id                String        @id @default(uuid())
+  invoiceNumber     String        @unique
+  invoiceType       String        @default("SYSTEM_GENERATED") // "SYSTEM_GENERATED" or "RECORDED_EXTERNAL"
+  billingDate       DateTime      @default(now())
+  dueDate           DateTime
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  customerId        String
+  customer          Customer      @relation(fields: [customerId], references: [id])
+  customerGstin     String?
+  placeOfSupply     String?
+  subtotal          Float         @default(0)
+  discountAmount    Float         @default(0)
+  cgstRate          Float         @default(9)
+  cgstAmount        Float         @default(0)
+  sgstRate          Float         @default(9)
+  sgstAmount        Float         @default(0)
+  igstRate          Float         @default(0)
+  igstAmount        Float         @default(0)
+  taxAmount         Float         @default(0)
+  totalAmount       Float         @default(0)
+  amountReceived    Float         @default(0)
+  balanceAmount     Float         @default(0)
+  paymentStatus     String        @default("UNPAID") // UNPAID, PARTIALLY_PAID, PAID, OVERDUE
+  paymentTerms      String?
+  isLocked          Boolean       @default(false)
+  creditNoteAmount  Float         @default(0)
+  creditNoteReason  String?
+  createdById       String
+  createdBy         User          @relation(fields: [createdById], references: [id])
+  isDeleted         Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  items             InvoiceItem[]
+  payments          Payment[]
+}
+
+model InvoiceItem {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  itemDescription String
+  hsnSacCode      String?
+  quantity        Float    @default(1)
+  unit            String   @default("Nos")
+  rate            Float    @default(0)
+  amount          Float    @default(0)
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  receiptNumber   String   @unique
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  paymentDate     DateTime @default(now())
+  paymentMode     String   // CASH, BANK_TRANSFER, UPI, CHEQUE, CARD, OTHER
+  amountReceived  Float
+  referenceNumber String?
+  bankName        String?
+  remarks         String?
+  receivedById    String
+  receivedBy      User     @relation(fields: [receivedById], references: [id])
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Purchase {
+  id                 String    @id @default(uuid())
+  purchaseNumber     String    @unique
+  purchaseDate       DateTime  @default(now())
+  supplierId         String
+  supplier           Supplier  @relation(fields: [supplierId], references: [id])
+  supplierBillNo     String?
+  description        String
+  category           String?   // RAW_MATERIAL, COMPONENTS, PACKAGING, SERVICES, LOGISTICS, OTHER
+  subtotal           Float     @default(0)
+  taxRate            Float     @default(18)
+  taxAmount          Float     @default(0)
+  totalAmount        Float     @default(0)
+  paymentStatus      String    @default("PENDING") // PENDING, PAID
+  billAttachmentPath String?
+  createdById        String
+  createdBy          User      @relation(fields: [createdById], references: [id])
+  isDeleted          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model DailyAdjustment {
+  id             String   @id @default(uuid())
+  date           DateTime
+  type           String   // BILLING_ADJUSTMENT, COLLECTION_ADJUSTMENT, PURCHASE_ADJUSTMENT
+  amount         Float    // Can be positive or negative
+  reason         String
+  authorizedById String
+  authorizedBy   User     @relation(fields: [authorizedById], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model DailySummaryLock {
+  id         String   @id @default(uuid())
+  date       DateTime @unique
+  isLocked   Boolean  @default(false)
+  lockedById String?
+  lockedBy   User?    @relation(fields: [lockedById], references: [id])
+  lockedAt   DateTime?
+  notes      String?
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  userEmail  String?
+  action     String   // CREATE, UPDATE, DELETE, STATUS_CHANGE, LOGIN, EXPORT
+  module     String
+  entityName String
+  entityId   String
+  oldValues  String?  // JSON string
+  newValues  String?  // JSON string
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+}
+
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   // String or JSON serialized string
+  category    String   @default("GENERAL") // GENERAL, TAX, INVOICE, NOTIFICATION, NUMBERING
+  description String?
+  updatedAt   DateTime @updatedAt
+}
