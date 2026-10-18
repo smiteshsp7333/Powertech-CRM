@@ -142,11 +142,8 @@ export default function OrdersPage() {
               <ShoppingBag className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Order Management
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                  Orange Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Track full order lifecycles, monitor fulfillment progress, and maintain audit records.

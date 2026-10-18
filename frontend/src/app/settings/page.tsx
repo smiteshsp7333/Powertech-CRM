@@ -21,8 +21,24 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const res = await api.getSettings();
-      if (res.success && res.data) {
-        setSettingsMap(res.data.map || {});
+      if (res && res.success && res.data) {
+        if (res.data.map && typeof res.data.map === 'object' && !Array.isArray(res.data.map)) {
+          setSettingsMap(res.data.map);
+        } else if (Array.isArray(res.data)) {
+          const map: Record<string, string> = {};
+          res.data.forEach((s: any) => {
+            if (s && s.key) map[s.key] = s.value || '';
+          });
+          setSettingsMap(map);
+        } else if (Array.isArray(res.data.list)) {
+          const map: Record<string, string> = {};
+          res.data.list.forEach((s: any) => {
+            if (s && s.key) map[s.key] = s.value || '';
+          });
+          setSettingsMap(map);
+        } else if (typeof res.data === 'object' && !Array.isArray(res.data)) {
+          setSettingsMap(res.data);
+        }
       }
     } catch (err) {
       console.error('Failed to load settings:', err);
@@ -32,7 +48,7 @@ export default function SettingsPage() {
   };
 
   const handleChange = (key: string, value: string) => {
-    setSettingsMap((prev) => ({ ...prev, [key]: value }));
+    setSettingsMap((prev) => ({ ...(prev || {}), [key]: value }));
     setSaveSuccess(false);
   };
 
@@ -41,7 +57,7 @@ export default function SettingsPage() {
     setSaving(true);
     setSaveSuccess(false);
 
-    const payload = Object.entries(settingsMap).map(([key, value]) => ({ key, value }));
+    const payload = Object.entries(settingsMap || {}).map(([key, value]) => ({ key, value }));
 
     try {
       const res = await api.updateSettings(payload);
@@ -65,11 +81,8 @@ export default function SettingsPage() {
               <Sliders className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 System & Company Settings
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                  Global Parameters
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Configure corporate metadata, PDF headers, banking remittance details, and GST tax parameters.

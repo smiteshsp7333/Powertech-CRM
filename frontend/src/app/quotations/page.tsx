@@ -261,11 +261,8 @@ export default function QuotationsPage() {
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Quotation Management
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                  Purple Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Generate itemized commercial quotations, manage revision snapshots, and export PDF documents.

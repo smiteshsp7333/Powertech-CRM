@@ -3,21 +3,14 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { Building2, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
-
-const QUICK_ROLES = [
-  { label: 'Super Admin', email: 'admin@powertech.com', desc: 'Full System Access & Config', color: '#f59e0b' },
-  { label: 'Sales', email: 'sales@powertech.com', desc: 'Enquiries, Quotes & Pricing', color: '#2563eb' },
-  { label: 'Operations', email: 'operations@powertech.com', desc: 'Fulfillment & Dispatches', color: '#0d9488' },
-  { label: 'Accounts', email: 'accounts@powertech.com', desc: 'Invoices, Receipts & Ageing', color: '#16a34a' },
-  { label: 'Purchase', email: 'purchase@powertech.com', desc: 'Suppliers & Procurement', color: '#dc2626' },
-];
+import { Building2, Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -31,22 +24,6 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please verify your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (roleEmail: string) => {
-    setEmail(roleEmail);
-    setPassword('Password@123');
-    setError(null);
-    setLoading(true);
-
-    try {
-      await login(roleEmail, 'Password@123');
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Quick login failed.');
     } finally {
       setLoading(false);
     }
@@ -82,7 +59,7 @@ export default function LoginPage() {
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">Corporate Email</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
                   value={email}
@@ -97,15 +74,24 @@ export default function LoginPage() {
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-white placeholder-slate-500 transition-colors"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-white placeholder-slate-500 transition-colors"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 focus:outline-none"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -118,40 +104,6 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Logins Section */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                1-Click Demo Evaluation Roles
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {QUICK_ROLES.map((r) => (
-                <button
-                  key={r.email}
-                  type="button"
-                  onClick={() => handleQuickLogin(r.email)}
-                  disabled={loading}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 hover:border-slate-600 text-left transition-colors group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                    <div>
-                      <span className="text-xs font-bold text-white block group-hover:text-blue-400 transition-colors">
-                        {r.label}
-                      </span>
-                      <span className="text-[10px] text-slate-400 block">{r.desc}</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-400 group-hover:text-white px-2 py-0.5 rounded bg-slate-700/50">
-                    Login
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}

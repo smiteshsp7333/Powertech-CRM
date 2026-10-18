@@ -129,11 +129,8 @@ export default function RolesPage() {
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Role-Based Access Control (RBAC) Vault
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  Granular Permissions
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Configure module privileges (view, create, edit, delete, export) and data scopes (own vs all) enforced on every API route.

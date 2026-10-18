@@ -107,11 +107,8 @@ export default function DailySummaryPage() {
               <CalendarDays className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Daily Billing, Sales & Purchase Summary
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
-                  Automated Reconciliation
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Zero double-entry reconciliation pulling directly from invoices, payment receipts, and purchases.
@@ -138,7 +135,7 @@ export default function DailySummaryPage() {
               <CreditCard className="w-5 h-5" />
             </div>
             <span className="text-2xl font-black text-white block mt-3">
-              INR {(totals.billing ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              INR {(Number(totals.billing ?? totals.totalBilling ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
             <span className="text-[10px] text-slate-400 block mt-1">Automatic pull from issued invoices</span>
           </div>
@@ -149,7 +146,7 @@ export default function DailySummaryPage() {
               <DollarSign className="w-5 h-5" />
             </div>
             <span className="text-2xl font-black text-emerald-300 block mt-3">
-              INR {(totals.collection ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              INR {(Number(totals.collection ?? totals.totalCollections ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
             <span className="text-[10px] text-slate-400 block mt-1">Automatic pull from payment receipts</span>
           </div>
@@ -160,7 +157,7 @@ export default function DailySummaryPage() {
               <ShoppingCart className="w-5 h-5" />
             </div>
             <span className="text-2xl font-black text-rose-300 block mt-3">
-              INR {(totals.purchase ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              INR {(Number(totals.purchase ?? totals.totalPurchases ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
             <span className="text-[10px] text-slate-400 block mt-1">Automatic pull from vendor purchases</span>
           </div>
@@ -172,10 +169,10 @@ export default function DailySummaryPage() {
             </div>
             <span
               className={`text-2xl font-black block mt-3 ${
-                (totals.netCashFlow ?? 0) >= 0 ? 'text-sky-300' : 'text-rose-400'
+                (Number(totals.netCashFlow ?? 0)) >= 0 ? 'text-sky-300' : 'text-rose-400'
               }`}
             >
-              INR {(totals.netCashFlow ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              INR {(Number(totals.netCashFlow ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
             <span className="text-[10px] text-slate-400 block mt-1">
               Formula: Collection - Purchase + Adjustments
@@ -252,56 +249,65 @@ export default function DailySummaryPage() {
                     </td>
                   </tr>
                 ) : (
-                  summaryData?.dailyRecords?.map((row: any) => (
-                    <tr key={row.date}>
-                      <td className="font-bold text-white font-mono text-xs">{row.date}</td>
-                      <td className="text-blue-400 font-semibold text-xs">
-                        INR {row.billingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="text-emerald-400 font-semibold text-xs">
-                        INR {row.collectionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="text-rose-400 font-semibold text-xs">
-                        INR {row.purchaseAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="text-slate-300 text-xs">
-                        {row.adjustmentAmount !== 0 ? (
-                          <span className={row.adjustmentAmount > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                            {row.adjustmentAmount > 0 ? '+' : ''}INR {row.adjustmentAmount.toLocaleString('en-IN')}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td className="font-bold text-white text-xs">
-                        INR {row.netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            row.isLocked ? 'badge-red' : 'badge-green'
-                          }`}
-                        >
-                          {row.isLocked ? 'LOCKED' : 'OPEN'}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        {hasPermission('DAILY_SUMMARY', 'edit') && (
-                          <button
-                            onClick={() => handleToggleLock(row.date, row.isLocked)}
-                            title={row.isLocked ? 'Unlock Date for Admin Edit' : 'Lock Date to Finalize'}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              row.isLocked
-                                ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                  summaryData?.dailyRecords?.map((row: any) => {
+                    const billing = Number(row?.billingAmount ?? 0);
+                    const collection = Number(row?.collectionAmount ?? 0);
+                    const purchase = Number(row?.purchaseAmount ?? 0);
+                    const adjustment = Number(row?.adjustmentAmount ?? row?.adjustments ?? 0);
+                    const netCash = Number(row?.netCashFlow ?? (collection - purchase + adjustment));
+                    const isLocked = Boolean(row?.isLocked);
+
+                    return (
+                      <tr key={row?.date || Math.random()}>
+                        <td className="font-bold text-white font-mono text-xs">{row?.date}</td>
+                        <td className="text-blue-400 font-semibold text-xs">
+                          INR {billing.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="text-emerald-400 font-semibold text-xs">
+                          INR {collection.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="text-rose-400 font-semibold text-xs">
+                          INR {purchase.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="text-slate-300 text-xs">
+                          {adjustment !== 0 ? (
+                            <span className={adjustment > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                              {adjustment > 0 ? '+' : ''}INR {adjustment.toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td className="font-bold text-white text-xs">
+                          INR {netCash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              isLocked ? 'badge-red' : 'badge-green'
                             }`}
                           >
-                            {row.isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                            {isLocked ? 'LOCKED' : 'OPEN'}
+                          </span>
+                        </td>
+                        <td className="text-right">
+                          {hasPermission('DAILY_SUMMARY', 'edit') && (
+                            <button
+                              onClick={() => handleToggleLock(row?.date, isLocked)}
+                              title={isLocked ? 'Unlock Date for Admin Edit' : 'Lock Date to Finalize'}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                isLocked
+                                  ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
+                                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

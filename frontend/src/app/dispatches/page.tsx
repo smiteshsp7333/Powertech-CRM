@@ -187,11 +187,8 @@ export default function DispatchesPage() {
               <Truck className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Dispatch & Delivery Management
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30">
-                  Teal Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Log partial or full shipments, track courier consignments, and record delivery handovers.

@@ -145,11 +145,8 @@ export default function EnquiriesPage() {
               <HelpCircle className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Enquiry Management
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  Blue Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Record and qualify prospective clients, track history timeline, and prepare quotations.

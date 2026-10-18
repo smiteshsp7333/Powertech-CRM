@@ -103,11 +103,8 @@ export default function ReportsPage() {
               <BarChart3 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Business Reports & Export Hub
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                  Grey Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Comprehensive operational registers, tabular views, and server-side Excel (.xlsx) exports.

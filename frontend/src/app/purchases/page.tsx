@@ -128,11 +128,8 @@ export default function PurchasesPage() {
               <ShoppingCart className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-xl font-black text-white">
                 Purchase & Procurement
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                  Red Theme
-                </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 Manage vendor supplier bills and feed procurement expenses into the daily financial summary.

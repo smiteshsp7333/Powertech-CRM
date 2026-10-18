@@ -285,9 +285,16 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   // Settings
   if (cleanEndpoint === '/settings') {
+    const settingsMap = DEMO_SETTINGS.reduce((acc, curr) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    }, {} as Record<string, string>);
     return {
       success: true,
-      data: DEMO_SETTINGS,
+      data: {
+        list: DEMO_SETTINGS,
+        map: settingsMap,
+      },
     } as unknown as T;
   }
 
