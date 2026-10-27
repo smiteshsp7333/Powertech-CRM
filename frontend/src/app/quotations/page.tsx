@@ -242,6 +242,16 @@ export default function QuotationsPage() {
     }
   };
 
+  const handleDeleteQuotation = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this quotation record?')) return;
+    try {
+      await api.deleteQuotation(id);
+      loadQuotations();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete quotation');
+    }
+  };
+
   const resetForm = () => {
     setSelectedCustomerId('');
     setSelectedEnquiryId('');
@@ -432,6 +442,14 @@ export default function QuotationsPage() {
                               <span>Order</span>
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteQuotation(q.id)}
+                            title="Delete Quotation"
+                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

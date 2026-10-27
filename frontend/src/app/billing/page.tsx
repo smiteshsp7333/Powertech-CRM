@@ -17,6 +17,7 @@ import {
   FileText,
   ShieldCheck,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { Invoice } from '../../types';
 
@@ -235,6 +236,17 @@ export default function BillingPage() {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       alert(err.message || 'Failed to download tax invoice PDF');
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    try {
+      await api.deleteInvoice(id);
+      loadInvoices();
+      loadPendingPayments();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete invoice');
     }
   };
 
@@ -503,6 +515,14 @@ export default function BillingPage() {
                               Credit Note
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteInvoice(inv.id)}
+                            title="Delete Invoice"
+                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -26,9 +26,9 @@ export const DEMO_ROLES = [
     description: 'Manages customer enquiries, quotes, pricing, and converts orders.',
     isSystem: false,
     permissions: [
-      { module: 'ENQUIRY', canView: true, canCreate: true, canEdit: true, canDelete: false, canExport: true, dataScope: 'ALL' },
-      { module: 'QUOTATION', canView: true, canCreate: true, canEdit: true, canDelete: false, canExport: true, dataScope: 'ALL' },
-      { module: 'ORDER', canView: true, canCreate: true, canEdit: false, canDelete: false, canExport: true, dataScope: 'ALL' },
+      { module: 'ENQUIRY', canView: true, canCreate: true, canEdit: true, canDelete: true, canExport: true, dataScope: 'ALL' },
+      { module: 'QUOTATION', canView: true, canCreate: true, canEdit: true, canDelete: true, canExport: true, dataScope: 'ALL' },
+      { module: 'ORDER', canView: true, canCreate: true, canEdit: true, canDelete: true, canExport: true, dataScope: 'ALL' },
       { module: 'DISPATCH', canView: true, canCreate: false, canEdit: false, canDelete: false, canExport: false, dataScope: 'ALL' },
       { module: 'BILLING', canView: true, canCreate: false, canEdit: false, canDelete: false, canExport: false, dataScope: 'ALL' },
       { module: 'PURCHASE', canView: false, canCreate: false, canEdit: false, canDelete: false, canExport: false, dataScope: 'OWN' },

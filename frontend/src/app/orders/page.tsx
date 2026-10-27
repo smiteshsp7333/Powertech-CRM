@@ -19,6 +19,7 @@ import {
   CreditCard,
   Ban,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 import { Order } from '../../types';
 
@@ -104,6 +105,16 @@ export default function OrdersPage() {
       }
     } catch (err: any) {
       alert(err.message || 'Failed to update order status');
+    }
+  };
+
+  const handleDeleteOrder = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+    try {
+      await api.deleteOrder(id);
+      loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete order');
     }
   };
 
@@ -275,6 +286,13 @@ export default function OrdersPage() {
                               Update Status
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDeleteOrder(ord.id)}
+                            title="Delete Order"
+                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -15,6 +15,7 @@ import {
   PackageCheck,
   Send,
   MapPin,
+  Trash2,
 } from 'lucide-react';
 import { Dispatch } from '../../types';
 
@@ -168,6 +169,16 @@ export default function DispatchesPage() {
     }
   };
 
+  const handleDeleteDispatch = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this dispatch record?')) return;
+    try {
+      await api.deleteDispatch(id);
+      loadDispatches();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete dispatch');
+    }
+  };
+
   const resetCreateForm = () => {
     setSelectedOrderId('');
     setSelectedOrderDetails(null);
@@ -317,6 +328,13 @@ export default function DispatchesPage() {
                             Update Delivery
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteDispatch(dsp.id)}
+                          title="Delete Dispatch"
+                          className="ml-1.5 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors inline-flex items-center"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))

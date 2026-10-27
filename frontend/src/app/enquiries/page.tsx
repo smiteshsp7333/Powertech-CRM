@@ -299,15 +299,13 @@ export default function EnquiriesPage() {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          {hasPermission('ENQUIRY', 'delete') && (
-                            <button
-                              onClick={() => handleDeleteEnquiry(enq.id)}
-                              title="Archive / Soft Delete"
-                              className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeleteEnquiry(enq.id)}
+                            title="Delete Enquiry"
+                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

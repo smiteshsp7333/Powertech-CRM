@@ -201,10 +201,18 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     } as unknown as T;
   }
 
+  if (cleanEndpoint.startsWith('/enquiries/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/enquiries/', '');
+    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
+    const updated = enquiries.filter((e) => e.id !== id && e.enquiryNumber !== id);
+    setStore('powertech_demo_enquiries', updated);
+    return { success: true, message: 'Enquiry deleted successfully.' } as unknown as T;
+  }
+
   if (cleanEndpoint.startsWith('/enquiries/') && method === 'GET') {
     const id = cleanEndpoint.replace('/enquiries/', '');
     const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
-    const found = enquiries.find((e) => e.id === id) || enquiries[0];
+    const found = enquiries.find((e) => e.id === id || e.enquiryNumber === id) || enquiries[0];
     return { success: true, data: found } as unknown as T;
   }
 
@@ -344,6 +352,14 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     }) as unknown as T;
   }
 
+  if (cleanEndpoint.startsWith('/quotations/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/quotations/', '');
+    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const updated = quotations.filter((q) => q.id !== id && q.quotationNumber !== id && q.fullNumber !== id);
+    setStore('powertech_demo_quotations', updated);
+    return { success: true, message: 'Quotation deleted successfully.' } as unknown as T;
+  }
+
   if (cleanEndpoint.startsWith('/quotations/') && method === 'GET') {
     const id = cleanEndpoint.replace('/quotations/', '');
     const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
@@ -351,7 +367,14 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     return { success: true, data: found } as unknown as T;
   }
 
-  // 4. Orders (Status Updating & Filtering)
+  // 4. Orders (Status Updating, Deleting & Filtering)
+  if (cleanEndpoint.startsWith('/orders/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/orders/', '');
+    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const updated = orders.filter((o) => o.id !== id && o.orderNumber !== id);
+    setStore('powertech_demo_orders', updated);
+    return { success: true, message: 'Order deleted successfully.' } as unknown as T;
+  }
   if (cleanEndpoint.includes('/status') && cleanEndpoint.startsWith('/orders/')) {
     const orderId = cleanEndpoint.split('/')[2];
     let body: any = {};
@@ -508,7 +531,23 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     } as unknown as T;
   }
 
+  if (cleanEndpoint.startsWith('/dispatches/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/dispatches/', '');
+    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+    const updated = dispatches.filter((d) => d.id !== id && d.dispatchNumber !== id);
+    setStore('powertech_demo_dispatches', updated);
+    return { success: true, message: 'Dispatch deleted successfully.' } as unknown as T;
+  }
+
   // 6. Billing & Invoices
+  if (cleanEndpoint.startsWith('/billing/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/billing/', '');
+    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const updated = invoices.filter((inv) => inv.id !== id && inv.invoiceNumber !== id);
+    setStore('powertech_demo_invoices', updated);
+    return { success: true, message: 'Invoice deleted successfully.' } as unknown as T;
+  }
+
   if (cleanEndpoint.includes('/payments') && cleanEndpoint.startsWith('/billing/')) {
     const invId = cleanEndpoint.split('/')[2];
     let body: any = {};
@@ -1016,6 +1055,8 @@ export const api = {
   addCreditNote: (invoiceId: string, data: any) =>
     request(`/billing/${invoiceId}/credit-note`, { method: 'POST', body: JSON.stringify(data) }),
   downloadInvoicePdf: (id: string) => request<Blob>(`/billing/${id}/pdf`),
+  deleteInvoice: (id: string) => request(`/billing/${id}`, { method: 'DELETE' }),
+  deleteDispatch: (id: string) => request(`/dispatches/${id}`, { method: 'DELETE' }),
 
   // Purchases
   getPurchases: (params: Record<string, string> = {}) => {
