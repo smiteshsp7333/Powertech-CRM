@@ -1,6 +1,6 @@
 // Powertech CRM Frontend API Client
 // Standard fetch client with automatic token attachment, error interception,
-// and seamless client-side demo fallback for hosted preview environments (e.g. Vercel)
+// and complete interactive client-side persistence for hosted preview environments (e.g. Vercel)
 
 import {
   DEMO_USERS,
@@ -33,22 +33,56 @@ export class ApiError extends Error {
   }
 }
 
+// In-memory / localStorage reactive store helper for Vercel preview
+function getStore<T>(key: string, initial: T): T {
+  if (typeof window === 'undefined') return initial;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+    localStorage.setItem(key, JSON.stringify(initial));
+  } catch (e) {
+    // fallback
+  }
+  return initial;
+}
+
+function setStore<T>(key: string, value: T): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
 function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T {
   const method = (options.method || 'GET').toUpperCase();
-  const cleanEndpoint = endpoint.split('?')[0];
+  const [cleanEndpoint, queryString] = endpoint.split('?');
+  const queryParams = new URLSearchParams(queryString || '');
 
-  // Auth: Login
+  // 1. Auth: Login (Strict validation - NO automatic fallback)
   if (cleanEndpoint === '/auth/login' && method === 'POST') {
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {
-      // ignore
-    }
-    const user = DEMO_USERS[body.email] || DEMO_USERS['admin@powertech.com'];
+    } catch (e) {}
+
+    const email = (body.email || '').trim().toLowerCase();
+    const password = (body.password || '').trim();
+
+    const user = DEMO_USERS[email];
     if (!user) {
-      throw new ApiError('Invalid credentials. Use admin@powertech.com or one of the demo buttons.', 401);
+      throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
     }
+
+    const validPasswords = ['Password@123', 'admin123', 'password123'];
+    if (!validPasswords.includes(password)) {
+      throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
+    }
+
     return {
       success: true,
       data: {
@@ -89,27 +123,31 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }) as unknown as T;
     }
+    const enquiries = getStore('powertech_demo_enquiries', DEMO_ENQUIRIES);
     return {
       success: true,
-      data: DEMO_ENQUIRIES,
+      data: enquiries,
     } as unknown as T;
   }
 
-  // Enquiries
+  // 2. Enquiries (Creation & Filtering)
   if (cleanEndpoint === '/enquiries') {
+    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
+
     if (method === 'POST') {
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
       } catch (e) {}
+
       const newEnq = {
         id: `enq-${Date.now()}`,
-        enquiryNumber: `ENQ-2026-0000${DEMO_ENQUIRIES.length + 1}`,
+        enquiryNumber: `ENQ-2026-0000${enquiries.length + 1}`,
         enquiryDate: new Date().toISOString(),
         customerName: body.customerName || 'Demo Customer',
         companyName: body.companyName || '',
         phone: body.phone || '+91 98000 00000',
-        address: body.address || 'Industrial Estate',
+        address: body.address || 'Industrial Area',
         customerType: body.customerType || 'COMPANY',
         requirements: body.requirements || '',
         remarks: body.remarks || '',
@@ -121,63 +159,183 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
           {
             id: `t-${Date.now()}`,
             action: 'CREATED',
-            description: 'Enquiry recorded in demo system.',
+            description: 'Enquiry recorded in system.',
             createdAt: new Date().toISOString(),
             user: { name: 'Current User' },
           },
         ],
       };
+
+      const updated = [newEnq, ...enquiries];
+      setStore('powertech_demo_enquiries', updated);
       return { success: true, data: newEnq } as unknown as T;
     }
+
+    // GET with filtering
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    const status = queryParams.get('status') || '';
+    const customerType = queryParams.get('customerType') || '';
+
+    let filtered = enquiries;
+    if (search) {
+      filtered = filtered.filter(
+        (e) =>
+          e.enquiryNumber?.toLowerCase().includes(search) ||
+          e.customerName?.toLowerCase().includes(search) ||
+          e.companyName?.toLowerCase().includes(search) ||
+          e.phone?.includes(search) ||
+          e.requirements?.toLowerCase().includes(search)
+      );
+    }
+    if (status) {
+      filtered = filtered.filter((e) => e.status === status);
+    }
+    if (customerType) {
+      filtered = filtered.filter((e) => e.customerType === customerType);
+    }
+
     return {
       success: true,
-      data: DEMO_ENQUIRIES,
-      pagination: { total: DEMO_ENQUIRIES.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
     } as unknown as T;
   }
 
-  if (cleanEndpoint.startsWith('/enquiries/')) {
-    const enq = DEMO_ENQUIRIES[0];
-    return { success: true, data: enq } as unknown as T;
+  if (cleanEndpoint.startsWith('/enquiries/') && method === 'GET') {
+    const id = cleanEndpoint.replace('/enquiries/', '');
+    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
+    const found = enquiries.find((e) => e.id === id) || enquiries[0];
+    return { success: true, data: found } as unknown as T;
   }
 
-  // Quotations
+  // 3. Quotations (Creation & Filtering)
   if (cleanEndpoint === '/quotations') {
+    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+
     if (method === 'POST') {
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
       } catch (e) {}
+
+      const customers = getStore<any[]>('powertech_demo_customers', DEMO_CUSTOMERS);
+      const matchedCust = customers.find((c) => c.id === body.customerId);
+
+      const items = (body.items || []).map((it: any, idx: number) => ({
+        id: `qi-new-${Date.now()}-${idx}`,
+        description: it.itemDescription || it.description || 'Industrial Equipment',
+        itemDescription: it.itemDescription || it.description || 'Industrial Equipment',
+        specification: it.specification || '',
+        quantity: Number(it.quantity) || 1,
+        unit: it.unit || 'Nos',
+        rate: Number(it.rate) || 0,
+        amount: (Number(it.quantity) || 1) * (Number(it.rate) || 0),
+      }));
+
+      const subtotal = items.reduce((acc: number, curr: any) => acc + curr.amount, 0);
+      const discountValue = Number(body.discountValue) || 0;
+      const discountAmount =
+        body.discountType === 'PERCENT'
+          ? (subtotal * Math.min(100, discountValue)) / 100
+          : Math.min(subtotal, discountValue);
+      const taxable = Math.max(0, subtotal - discountAmount);
+      const taxRate = Number(body.taxRate) || 18;
+      const taxAmount = (taxable * taxRate) / 100;
+      const totalAmount = Math.round(taxable + taxAmount);
+
       const newQtn = {
         id: `qtn-${Date.now()}`,
-        quotationNumber: `QTN-2026-0000${DEMO_QUOTATIONS.length + 1}`,
+        quotationNumber: `QTN-2026-0000${quotations.length + 1}`,
         revisionNumber: 0,
         quotationDate: new Date().toISOString(),
-        customerName: body.customerName || 'Tata Power',
-        companyName: body.companyName || '',
-        totalAmount: 500000,
+        customerName: matchedCust ? matchedCust.name : (body.customerName || 'Tata Power'),
+        companyName: matchedCust ? matchedCust.companyName : (body.companyName || 'Tata Power Industrial Solutions'),
+        totalAmount,
+        subtotal,
+        discountType: body.discountType || 'PERCENT',
+        discountValue,
+        taxRate,
+        specificationNotes: body.specificationNotes || '',
+        termsAndConditions: body.termsAndConditions || '',
         status: 'DRAFT',
-        items: body.items || [],
+        items,
         revisions: [],
       };
+
+      const updated = [newQtn, ...quotations];
+      setStore('powertech_demo_quotations', updated);
       return { success: true, data: newQtn } as unknown as T;
     }
+
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    const status = queryParams.get('status') || '';
+
+    let filtered = quotations;
+    if (search) {
+      filtered = filtered.filter(
+        (q) =>
+          q.quotationNumber?.toLowerCase().includes(search) ||
+          q.customerName?.toLowerCase().includes(search) ||
+          q.companyName?.toLowerCase().includes(search)
+      );
+    }
+    if (status) {
+      filtered = filtered.filter((q) => q.status === status);
+    }
+
     return {
       success: true,
-      data: DEMO_QUOTATIONS,
-      pagination: { total: DEMO_QUOTATIONS.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
     } as unknown as T;
   }
 
   if (cleanEndpoint.includes('/convert-to-order')) {
-    return {
-      success: true,
-      data: {
-        id: `ord-${Date.now()}`,
-        orderNumber: `ORD-2026-0000${DEMO_ORDERS.length + 1}`,
-        status: 'CONFIRMED',
+    const qtnId = cleanEndpoint.split('/')[2];
+    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const qtn = quotations.find((q) => q.id === qtnId);
+    if (qtn) {
+      qtn.status = 'CONVERTED_TO_ORDER';
+      setStore('powertech_demo_quotations', quotations);
+    }
+
+    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const newOrd = {
+      id: `ord-${Date.now()}`,
+      orderNumber: `ORD-2026-0000${orders.length + 1}`,
+      orderDate: new Date().toISOString(),
+      customerName: qtn?.customerName || 'Tata Power',
+      companyName: qtn?.companyName || 'Tata Power Industrial Solutions',
+      phone: '+91 98200 11223',
+      address: 'Plot 45, MIDC Industrial Area, Pune',
+      customer: {
+        id: 'c-1',
+        name: qtn?.customerName || 'Tata Power',
+        companyName: qtn?.companyName || 'Tata Power Industrial Solutions',
+        phone: '+91 98200 11223',
+        address: 'Plot 45, MIDC Industrial Area, Pune',
       },
-    } as unknown as T;
+      totalAmount: qtn?.totalAmount || 500000,
+      paymentTerms: '50% advance received, 50% on dispatch',
+      dueDays: 30,
+      status: 'CONFIRMED',
+      items: (qtn?.items || []).map((it: any, i: number) => ({
+        id: `oi-${Date.now()}-${i}`,
+        description: it.description || it.itemDescription,
+        itemDescription: it.itemDescription || it.description,
+        quantity: it.quantity,
+        unit: it.unit || 'Nos',
+        dispatchedQty: 0,
+        rate: it.rate,
+        amount: it.amount,
+      })),
+      dispatches: [],
+      invoices: [],
+      completionPhotos: [],
+    };
+
+    setStore('powertech_demo_orders', [newOrd, ...orders]);
+    return { success: true, data: newOrd } as unknown as T;
   }
 
   if (cleanEndpoint.endsWith('/pdf')) {
@@ -186,92 +344,489 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     }) as unknown as T;
   }
 
-  if (cleanEndpoint.startsWith('/quotations/')) {
-    return { success: true, data: DEMO_QUOTATIONS[0] } as unknown as T;
+  if (cleanEndpoint.startsWith('/quotations/') && method === 'GET') {
+    const id = cleanEndpoint.replace('/quotations/', '');
+    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const found = quotations.find((q) => q.id === id) || quotations[0];
+    return { success: true, data: found } as unknown as T;
   }
 
-  // Orders
+  // 4. Orders (Status Updating & Filtering)
+  if (cleanEndpoint.includes('/status') && cleanEndpoint.startsWith('/orders/')) {
+    const orderId = cleanEndpoint.split('/')[2];
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      order.status = body.status;
+      if (body.cancellationReason) {
+        order.cancellationReason = body.cancellationReason;
+      }
+      setStore('powertech_demo_orders', orders);
+      return { success: true, data: order } as unknown as T;
+    }
+  }
+
   if (cleanEndpoint === '/orders') {
+    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    const status = queryParams.get('status') || '';
+
+    let filtered = orders;
+    if (search) {
+      filtered = filtered.filter(
+        (o) =>
+          o.orderNumber?.toLowerCase().includes(search) ||
+          o.customerName?.toLowerCase().includes(search) ||
+          o.companyName?.toLowerCase().includes(search)
+      );
+    }
+    if (status) {
+      filtered = filtered.filter((o) => o.status === status);
+    }
+
     return {
       success: true,
-      data: DEMO_ORDERS,
-      pagination: { total: DEMO_ORDERS.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
     } as unknown as T;
   }
 
-  if (cleanEndpoint.startsWith('/orders/')) {
-    return { success: true, data: DEMO_ORDERS[0] } as unknown as T;
+  if (cleanEndpoint.startsWith('/orders/') && method === 'GET') {
+    const id = cleanEndpoint.replace('/orders/', '');
+    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const found = orders.find((o) => o.id === id) || orders[0];
+    return { success: true, data: found } as unknown as T;
   }
 
-  // Dispatches
+  // 5. Dispatches (Creation, Delivery Status & Filtering)
+  if (cleanEndpoint.includes('/status') && cleanEndpoint.startsWith('/dispatches/')) {
+    const dspId = cleanEndpoint.split('/')[2];
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+    const dsp = dispatches.find((d) => d.id === dspId);
+    if (dsp) {
+      dsp.deliveryStatus = body.deliveryStatus || 'DELIVERED';
+      dsp.actualDeliveryDate = body.actualDeliveryDate || new Date().toISOString();
+      dsp.remarks = body.remarks || dsp.remarks;
+      setStore('powertech_demo_dispatches', dispatches);
+      return { success: true, data: dsp } as unknown as T;
+    }
+  }
+
   if (cleanEndpoint === '/dispatches') {
+    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+
     if (method === 'POST') {
-      return {
-        success: true,
-        data: {
-          id: `dsp-${Date.now()}`,
-          dispatchNumber: `DSP-2026-0000${DEMO_DISPATCHES.length + 1}`,
-          deliveryStatus: 'PENDING',
+      let body: any = {};
+      try {
+        body = JSON.parse(options.body as string);
+      } catch (e) {}
+
+      const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+      const order = orders.find((o) => o.id === body.orderId);
+
+      // Update dispatched quantities on order items
+      if (order && body.items) {
+        body.items.forEach((dspItem: any) => {
+          const ordItem = order.items?.find((oi: any) => oi.id === dspItem.orderItemId);
+          if (ordItem) {
+            ordItem.dispatchedQty = (Number(ordItem.dispatchedQty) || 0) + Number(dspItem.quantity);
+          }
+        });
+        const allFullyDispatched = order.items?.every(
+          (oi: any) => (Number(oi.dispatchedQty) || 0) >= (Number(oi.quantity) || 1)
+        );
+        order.status = allFullyDispatched ? 'DISPATCHED' : 'PARTIALLY_DISPATCHED';
+        setStore('powertech_demo_orders', orders);
+      }
+
+      const newDispatch = {
+        id: `dsp-${Date.now()}`,
+        dispatchNumber: `DSP-2026-0000${dispatches.length + 1}`,
+        dispatchDate: new Date().toISOString(),
+        transportCourier: body.transportCourier || 'VRL Logistics',
+        courierName: body.transportCourier || 'VRL Logistics',
+        trackingNumber: body.trackingNumber || `TRK-${Date.now()}`,
+        deliveryAddress: body.deliveryAddress || order?.address || 'Industrial Plant',
+        expectedDeliveryDate: body.expectedDeliveryDate || new Date().toISOString(),
+        actualDeliveryDate: null,
+        deliveryStatus: 'DISPATCHED',
+        remarks: body.remarks || 'Dispatched from factory',
+        order: {
+          id: order?.id || 'ord-1',
+          orderNumber: order?.orderNumber || 'ORD-2026-00001',
+          customerName: order?.customerName || 'Tata Power',
+          companyName: order?.companyName || 'Tata Power Industrial Solutions',
+          customer: {
+            id: 'c-1',
+            name: order?.customerName || 'Tata Power',
+            companyName: order?.companyName || 'Tata Power Industrial Solutions',
+            phone: order?.phone || '+91 98200 11223',
+            address: order?.address || 'Pune Industrial Area',
+          },
         },
-      } as unknown as T;
+        items: body.items || [],
+      };
+
+      const updated = [newDispatch, ...dispatches];
+      setStore('powertech_demo_dispatches', updated);
+      return { success: true, data: newDispatch } as unknown as T;
     }
+
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    const deliveryStatus = queryParams.get('deliveryStatus') || '';
+
+    let filtered = dispatches;
+    if (search) {
+      filtered = filtered.filter(
+        (d) =>
+          d.dispatchNumber?.toLowerCase().includes(search) ||
+          d.order?.orderNumber?.toLowerCase().includes(search) ||
+          d.order?.customerName?.toLowerCase().includes(search) ||
+          d.courierName?.toLowerCase().includes(search) ||
+          d.transportCourier?.toLowerCase().includes(search) ||
+          d.trackingNumber?.toLowerCase().includes(search)
+      );
+    }
+    if (deliveryStatus) {
+      filtered = filtered.filter((d) => d.deliveryStatus === deliveryStatus);
+    }
+
     return {
       success: true,
-      data: DEMO_DISPATCHES,
-      pagination: { total: DEMO_DISPATCHES.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
     } as unknown as T;
   }
 
-  // Billing & Invoices
-  if (cleanEndpoint === '/billing') {
-    if (method === 'POST') {
-      return {
-        success: true,
-        data: {
-          id: `inv-${Date.now()}`,
-          invoiceNumber: `INV-2026-27-0000${DEMO_INVOICES.length + 1}`,
-          paymentStatus: 'UNPAID',
-        },
-      } as unknown as T;
+  // 6. Billing & Invoices
+  if (cleanEndpoint.includes('/payments') && cleanEndpoint.startsWith('/billing/')) {
+    const invId = cleanEndpoint.split('/')[2];
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoice = invoices.find((inv) => inv.id === invId);
+    if (invoice) {
+      const paymentAmount = Number(body.amountReceived) || 0;
+      invoice.paidAmount = (Number(invoice.paidAmount) || 0) + paymentAmount;
+      invoice.balanceAmount = Math.max(0, (Number(invoice.totalAmount) || 0) - invoice.paidAmount);
+      invoice.paymentStatus = invoice.balanceAmount === 0 ? 'PAID' : 'PARTIALLY_PAID';
+
+      if (!invoice.payments) invoice.payments = [];
+      invoice.payments.push({
+        id: `pm-${Date.now()}`,
+        amount: paymentAmount,
+        paymentDate: body.paymentDate || new Date().toISOString(),
+        paymentMode: body.paymentMode || 'BANK_TRANSFER',
+        referenceNumber: body.referenceNumber || '',
+        notes: body.remarks || '',
+      });
+
+      setStore('powertech_demo_invoices', invoices);
+      return { success: true, data: invoice } as unknown as T;
     }
+  }
+
+  if (cleanEndpoint === '/billing') {
+    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+
+    if (method === 'POST') {
+      let body: any = {};
+      try {
+        body = JSON.parse(options.body as string);
+      } catch (e) {}
+
+      const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+      const order = orders.find((o) => o.id === body.orderId);
+
+      const items = (body.items || order?.items || []).map((it: any, i: number) => ({
+        id: `ii-new-${Date.now()}-${i}`,
+        description: it.itemDescription || it.description || 'Industrial Equipment',
+        hsnCode: it.hsnSacCode || '8504',
+        quantity: Number(it.quantity) || 1,
+        rate: Number(it.rate) || 100000,
+        amount: (Number(it.quantity) || 1) * (Number(it.rate) || 100000),
+      }));
+
+      const subtotal = items.reduce((acc: number, curr: any) => acc + curr.amount, 0);
+      const gstRate = Number(body.gstRate) || 18;
+      const totalTax = Math.round((subtotal * gstRate) / 100);
+      const totalAmount = subtotal + totalTax;
+
+      const newInv = {
+        id: `inv-${Date.now()}`,
+        invoiceNumber: body.invoiceType === 'RECORDED_EXTERNAL' && body.externalInvoiceNumber
+          ? body.externalInvoiceNumber
+          : `INV-2026-27-0000${invoices.length + 1}`,
+        billingDate: body.billingDate || new Date().toISOString(),
+        dueDate: body.dueDate || new Date(Date.now() + 30 * 86400000).toISOString(),
+        customerName: order?.customerName || 'Tata Power',
+        companyName: order?.companyName || 'Tata Power Industrial Solutions',
+        customerGstin: '27AABCT3518Q1Z8',
+        subtotal,
+        cgstAmount: body.isInterState ? 0 : Math.round(totalTax / 2),
+        sgstAmount: body.isInterState ? 0 : Math.round(totalTax / 2),
+        igstAmount: body.isInterState ? totalTax : 0,
+        totalTax,
+        totalAmount,
+        paidAmount: 0,
+        balanceAmount: totalAmount,
+        paymentStatus: 'UNPAID',
+        mode: body.invoiceType || 'SYSTEM_GENERATED',
+        order: { id: order?.id || 'ord-1', orderNumber: order?.orderNumber || 'ORD-2026-00001' },
+        items,
+        payments: [],
+      };
+
+      const updated = [newInv, ...invoices];
+      setStore('powertech_demo_invoices', updated);
+
+      if (order) {
+        order.status = 'INVOICED';
+        setStore('powertech_demo_orders', orders);
+      }
+
+      return { success: true, data: newInv } as unknown as T;
+    }
+
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    const paymentStatus = queryParams.get('paymentStatus') || '';
+
+    let filtered = invoices;
+    if (search) {
+      filtered = filtered.filter(
+        (inv) =>
+          inv.invoiceNumber?.toLowerCase().includes(search) ||
+          inv.customerName?.toLowerCase().includes(search) ||
+          inv.companyName?.toLowerCase().includes(search) ||
+          inv.customerGstin?.toLowerCase().includes(search)
+      );
+    }
+    if (paymentStatus) {
+      filtered = filtered.filter((inv) => inv.paymentStatus === paymentStatus);
+    }
+
     return {
       success: true,
-      data: DEMO_INVOICES,
-      pagination: { total: DEMO_INVOICES.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
       ageing: DEMO_AGEING,
     } as unknown as T;
   }
 
   if (cleanEndpoint === '/billing/pending-payments') {
+    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const pending = invoices.filter((i) => i.paymentStatus !== 'PAID');
     return {
       success: true,
-      data: DEMO_INVOICES,
+      data: pending,
     } as unknown as T;
   }
 
-  // Purchases
+  // 7. Purchases
   if (cleanEndpoint === '/purchases') {
+    const purchases = getStore<any[]>('powertech_demo_purchases', DEMO_PURCHASES);
+
     if (method === 'POST') {
-      return {
-        success: true,
-        data: {
-          id: `pur-${Date.now()}`,
-          purchaseNumber: `PUR-2026-0000${DEMO_PURCHASES.length + 1}`,
-        },
-      } as unknown as T;
+      let body: any = {};
+      try {
+        body = JSON.parse(options.body as string);
+      } catch (e) {}
+
+      const suppliers = getStore<any[]>('powertech_demo_suppliers', DEMO_SUPPLIERS);
+      const supplier = suppliers.find((s) => s.id === body.supplierId);
+
+      const subtotal = Number(body.subtotal) || 0;
+      const taxRate = Number(body.taxRate) || 18;
+      const taxAmount = Math.round((subtotal * taxRate) / 100);
+      const totalAmount = subtotal + taxAmount;
+
+      const newPurchase = {
+        id: `pur-${Date.now()}`,
+        purchaseNumber: `PUR-2026-0000${purchases.length + 1}`,
+        purchaseDate: body.purchaseDate || new Date().toISOString(),
+        supplierName: supplier?.name || 'Hindalco Copper & Metal Industries',
+        supplierBillNo: body.supplierBillNo || `SB-${Date.now()}`,
+        category: body.category || 'RAW_MATERIAL',
+        description: body.description || 'Industrial raw material procurement',
+        subtotal,
+        taxAmount,
+        totalAmount,
+      };
+
+      const updated = [newPurchase, ...purchases];
+      setStore('powertech_demo_purchases', updated);
+      return { success: true, data: newPurchase } as unknown as T;
     }
+
+    const search = (queryParams.get('search') || '').toLowerCase().trim();
+    let filtered = purchases;
+    if (search) {
+      filtered = filtered.filter(
+        (p) =>
+          p.purchaseNumber?.toLowerCase().includes(search) ||
+          p.supplierName?.toLowerCase().includes(search) ||
+          p.supplierBillNo?.toLowerCase().includes(search) ||
+          p.description?.toLowerCase().includes(search)
+      );
+    }
+
     return {
       success: true,
-      data: DEMO_PURCHASES,
-      pagination: { total: DEMO_PURCHASES.length, page: 1, limit: 10, totalPages: 1 },
+      data: filtered,
+      pagination: { total: filtered.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(filtered.length / 10)) },
     } as unknown as T;
   }
 
-  // Daily Summary
+  if (cleanEndpoint.startsWith('/purchases/') && method === 'DELETE') {
+    const id = cleanEndpoint.replace('/purchases/', '');
+    const purchases = getStore<any[]>('powertech_demo_purchases', DEMO_PURCHASES);
+    const updated = purchases.filter((p) => p.id !== id);
+    setStore('powertech_demo_purchases', updated);
+    return { success: true, message: 'Purchase bill deleted successfully.' } as unknown as T;
+  }
+
+  // 8. Daily Summary (Adjustments, Manual Recording & Locks)
+  if (cleanEndpoint === '/daily-summary/record' && method === 'POST') {
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const records = [...summary.dailyRecords];
+    const targetDate = body.date || new Date().toISOString().slice(0, 10);
+
+    const existingIdx = records.findIndex((r) => r.date === targetDate);
+    const billingAmount = Number(body.billingAmount) || 0;
+    const collectionAmount = Number(body.collectionAmount) || 0;
+    const purchaseAmount = Number(body.purchaseAmount) || 0;
+    const adjustmentAmount = Number(body.adjustmentAmount) || 0;
+    const netCashFlow = collectionAmount - purchaseAmount + adjustmentAmount;
+
+    const newRecord = {
+      date: targetDate,
+      billingAmount,
+      collectionAmount,
+      purchaseAmount,
+      adjustmentAmount,
+      adjustments: body.notes ? [{ id: `adj-${Date.now()}`, type: 'MANUAL_ENTRY', amount: adjustmentAmount, reason: body.notes }] : [],
+      netCashFlow,
+      isLocked: false,
+    };
+
+    if (existingIdx >= 0) {
+      records[existingIdx] = newRecord;
+    } else {
+      records.unshift(newRecord);
+    }
+
+    const totalBilling = records.reduce((acc, r) => acc + (Number(r.billingAmount) || 0), 0);
+    const totalCollection = records.reduce((acc, r) => acc + (Number(r.collectionAmount) || 0), 0);
+    const totalPurchase = records.reduce((acc, r) => acc + (Number(r.purchaseAmount) || 0), 0);
+    const totalNetCash = totalCollection - totalPurchase;
+
+    const updatedSummary = {
+      dailyRecords: records,
+      totals: {
+        billing: totalBilling,
+        collection: totalCollection,
+        purchase: totalPurchase,
+        netCashFlow: totalNetCash,
+      },
+    };
+
+    setStore('powertech_demo_daily_summary', updatedSummary);
+    return { success: true, data: updatedSummary } as unknown as T;
+  }
+
+  if (cleanEndpoint === '/daily-summary/adjustments' && method === 'POST') {
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const records = [...summary.dailyRecords];
+    const targetDate = body.date || new Date().toISOString().slice(0, 10);
+
+    let row = records.find((r) => r.date === targetDate);
+    if (!row) {
+      row = {
+        date: targetDate,
+        billingAmount: 0,
+        collectionAmount: 0,
+        purchaseAmount: 0,
+        adjustmentAmount: 0,
+        adjustments: [],
+        netCashFlow: 0,
+        isLocked: false,
+      };
+      records.unshift(row);
+    }
+
+    const adjAmt = Number(body.amount) || 0;
+    row.adjustmentAmount = (Number(row.adjustmentAmount) || 0) + adjAmt;
+    if (!row.adjustments) row.adjustments = [];
+    row.adjustments.push({
+      id: `adj-${Date.now()}`,
+      type: body.type || 'MANUAL_ADJUSTMENT',
+      amount: adjAmt,
+      reason: body.reason || 'Management Adjustment',
+    });
+    row.netCashFlow = (Number(row.collectionAmount) || 0) - (Number(row.purchaseAmount) || 0) + row.adjustmentAmount;
+
+    setStore('powertech_demo_daily_summary', { ...summary, dailyRecords: records });
+    return { success: true, data: row } as unknown as T;
+  }
+
+  if (cleanEndpoint === '/daily-summary/lock' && method === 'POST') {
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const records = [...summary.dailyRecords];
+    const row = records.find((r) => r.date === body.date);
+    if (row) {
+      row.isLocked = Boolean(body.isLocked);
+      setStore('powertech_demo_daily_summary', { ...summary, dailyRecords: records });
+    }
+    return { success: true } as unknown as T;
+  }
+
   if (cleanEndpoint === '/daily-summary') {
+    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const startDate = queryParams.get('startDate') || '';
+    const endDate = queryParams.get('endDate') || '';
+
+    let records = summary.dailyRecords || [];
+    if (startDate) {
+      records = records.filter((r: any) => r.date >= startDate);
+    }
+    if (endDate) {
+      records = records.filter((r: any) => r.date <= endDate);
+    }
+
     return {
       success: true,
-      data: DEMO_DAILY_SUMMARY,
+      data: {
+        dailyRecords: records,
+        totals: summary.totals || DEMO_DAILY_SUMMARY.totals,
+      },
     } as unknown as T;
   }
 
@@ -300,16 +855,18 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   // Customers & Suppliers
   if (cleanEndpoint === '/customers') {
+    const customers = getStore('powertech_demo_customers', DEMO_CUSTOMERS);
     return {
       success: true,
-      data: DEMO_CUSTOMERS,
+      data: customers,
     } as unknown as T;
   }
 
   if (cleanEndpoint === '/suppliers') {
+    const suppliers = getStore('powertech_demo_suppliers', DEMO_SUPPLIERS);
     return {
       success: true,
-      data: DEMO_SUPPLIERS,
+      data: suppliers,
     } as unknown as T;
   }
 
@@ -338,7 +895,6 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
       headers,
     });
 
-    // Handle file downloads directly
     const contentType = response.headers.get('content-type') || '';
     if (
       contentType.includes('application/pdf') ||
@@ -358,9 +914,7 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
     }
 
     if (!response.ok) {
-      // If 404, 502, 503, or 504 and running on Vercel without an external backend, provide the demo mock response
       if (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 504) {
-        console.warn(`[Powertech CRM] Backend endpoint ${endpoint} returned status ${response.status}. Using interactive preview fallback.`);
         return resolveMockResponse<T>(endpoint, options);
       }
 
@@ -376,11 +930,9 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
 
     return jsonResult;
   } catch (error: any) {
-    // If network error (backend server not running or unreachable)
     if (error instanceof ApiError) {
       throw error;
     }
-    console.warn(`[Powertech CRM] Backend unreachable at ${API_BASE_URL}${endpoint}. Falling back to demo preview mode.`);
     return resolveMockResponse<T>(endpoint, options);
   }
 }
@@ -478,6 +1030,8 @@ export const api = {
     const query = new URLSearchParams(params).toString();
     return request(`/daily-summary?${query}`);
   },
+  recordDailySummary: (data: any) =>
+    request('/daily-summary/record', { method: 'POST', body: JSON.stringify(data) }),
   addAdjustment: (data: any) =>
     request('/daily-summary/adjustments', { method: 'POST', body: JSON.stringify(data) }),
   toggleDayLock: (data: { date: string; isLocked: boolean; notes?: string }) =>

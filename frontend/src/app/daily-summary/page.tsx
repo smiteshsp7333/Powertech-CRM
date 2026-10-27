@@ -31,6 +31,14 @@ export default function DailySummaryPage() {
   const [adjAmount, setAdjAmount] = useState<number>(0);
   const [adjReason, setAdjReason] = useState('');
 
+  // Direct Daily Figures Record Modal
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [recordDate, setRecordDate] = useState(new Date().toISOString().slice(0, 10));
+  const [recordBilling, setRecordBilling] = useState<number>(0);
+  const [recordCollection, setRecordCollection] = useState<number>(0);
+  const [recordPurchase, setRecordPurchase] = useState<number>(0);
+  const [recordNotes, setRecordNotes] = useState('');
+
   useEffect(() => {
     loadDailySummary();
   }, [startDate, endDate]);
@@ -50,6 +58,32 @@ export default function DailySummaryPage() {
       console.error('Failed to load daily summary:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRecordDailySummarySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recordDate) {
+      alert('Date is required.');
+      return;
+    }
+
+    try {
+      const res = await api.recordDailySummary({
+        date: recordDate,
+        billingAmount: Number(recordBilling) || 0,
+        collectionAmount: Number(recordCollection) || 0,
+        purchaseAmount: Number(recordPurchase) || 0,
+        notes: recordNotes,
+      });
+
+      if (res.success) {
+        setRecordModalOpen(false);
+        setRecordNotes('');
+        loadDailySummary();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to record daily summary');
     }
   };
 
@@ -117,13 +151,22 @@ export default function DailySummaryPage() {
           </div>
 
           {hasPermission('DAILY_SUMMARY', 'create') && (
-            <button
-              onClick={() => setAdjustmentModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Record Manual Adjustment</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setRecordModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Record Daily Summary Figures</span>
+              </button>
+              <button
+                onClick={() => setAdjustmentModalOpen(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 border border-sky-500/30 font-bold text-xs transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Adjustment</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -398,6 +441,110 @@ export default function DailySummaryPage() {
                     className="px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold"
                   >
                     Save Adjustment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Record Daily Summary Figures */}
+        {recordModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="glass-panel w-full max-w-md rounded-2xl border border-slate-700 p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-base font-bold text-white">Record Daily Summary Figures</h3>
+                </div>
+                <button onClick={() => setRecordModalOpen(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Directly record or update the daily billing, collection, and purchase summary for this specific date.
+              </p>
+
+              <form onSubmit={handleRecordDailySummarySubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Summary Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={recordDate}
+                    onChange={(e) => setRecordDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Daily Billing / Invoiced Amount (INR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={recordBilling}
+                    onChange={(e) => setRecordBilling(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-right font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Daily Collection / Payments In (INR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={recordCollection}
+                    onChange={(e) => setRecordCollection(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-right font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Daily Purchase / Outflow Amount (INR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={recordPurchase}
+                    onChange={(e) => setRecordPurchase(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-right font-mono"
+                  />
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 text-xs flex justify-between font-bold">
+                  <span className="text-slate-400">Projected Net Cash Flow:</span>
+                  <span className={recordCollection - recordPurchase >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    INR {(recordCollection - recordPurchase).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Notes / Description (Optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. End of day reconciliation with sales register"
+                    value={recordNotes}
+                    onChange={(e) => setRecordNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setRecordModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                  >
+                    Save Daily Summary
                   </button>
                 </div>
               </form>

@@ -224,15 +224,15 @@ export default function OrdersPage() {
                         {new Date(ord.orderDate).toLocaleDateString()}
                       </td>
                       <td className="font-semibold text-white">
-                        {ord.customer?.name}
-                        {ord.customer?.companyName && (
+                        {ord.customer?.name || (ord as any).customerName || 'Industrial Client'}
+                        {(ord.customer?.companyName || (ord as any).companyName) && (
                           <span className="block text-[10px] text-slate-400 font-normal">
-                            {ord.customer.companyName}
+                            {ord.customer?.companyName || (ord as any).companyName}
                           </span>
                         )}
                       </td>
                       <td className="font-bold text-white text-xs">
-                        INR {ord.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        INR {(Number(ord.totalAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="text-slate-300 text-xs">{ord.dueDays} Days</td>
                       <td>

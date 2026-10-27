@@ -96,11 +96,13 @@ export default function DispatchesPage() {
       const res = await api.getOrderById(orderId);
       if (res.success) {
         setSelectedOrderDetails(res.data);
-        setDeliveryAddress(res.data.customer?.address || '');
+        setDeliveryAddress(res.data.customer?.address || res.data.customerAddress || '');
         // Default to dispatching all remaining quantities
         const initialQtys: Record<string, number> = {};
         res.data.items?.forEach((it: any) => {
-          const rem = Math.max(0, it.quantity - it.dispatchedQty);
+          const totalQty = Number(it.quantity) || 1;
+          const dispatched = Number(it.dispatchedQty ?? it.dispatchedQuantity ?? 0);
+          const rem = Math.max(0, totalQty - dispatched);
           initialQtys[it.id] = rem;
         });
         setDispatchItemQuantities(initialQtys);
@@ -278,8 +280,8 @@ export default function DispatchesPage() {
                       <td className="text-slate-400 text-xs">
                         {new Date(dsp.dispatchDate).toLocaleDateString()}
                       </td>
-                      <td className="font-semibold text-orange-400">{dsp.order?.orderNumber}</td>
-                      <td className="text-white text-xs">{dsp.order?.customer?.name}</td>
+                      <td className="font-semibold text-orange-400">{dsp.order?.orderNumber || (dsp as any).orderNumber || '-'}</td>
+                      <td className="text-white text-xs">{dsp.order?.customer?.name || (dsp.order as any)?.customerName || (dsp.order as any)?.companyName || 'Industrial Client'}</td>
                       <td className="text-slate-300 text-xs">{dsp.transportCourier || '-'}</td>
                       <td className="text-slate-200 font-mono text-xs">
                         {dsp.trackingNumber || '-'}
@@ -350,7 +352,7 @@ export default function DispatchesPage() {
                     <option value="">-- Choose Order to Dispatch --</option>
                     {orders.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.orderNumber} - {o.customer?.name} ({o.status})
+                        {o.orderNumber} - {o.customer?.name || o.customerName || o.companyName || 'Industrial Client'} ({o.status})
                       </option>
                     ))}
                   </select>
@@ -363,16 +365,20 @@ export default function DispatchesPage() {
                     </span>
 
                     {selectedOrderDetails.items?.map((it: any) => {
-                      const remaining = Math.max(0, it.quantity - it.dispatchedQty);
+                      const totalQty = Number(it.quantity) || 1;
+                      const dispatched = Number(it.dispatchedQty ?? it.dispatchedQuantity ?? 0);
+                      const remaining = Math.max(0, totalQty - dispatched);
+                      const unit = it.unit || 'Nos';
+                      const itemDesc = it.itemDescription || it.description || 'Industrial Equipment / Material';
                       return (
                         <div
                           key={it.id}
                           className="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800 text-xs"
                         >
                           <div>
-                            <span className="font-medium text-white block">{it.itemDescription}</span>
+                            <span className="font-medium text-white block">{itemDesc}</span>
                             <span className="text-[11px] text-slate-400">
-                              Total: {it.quantity} {it.unit} | Already Dispatched: {it.dispatchedQty} {it.unit} | Available: {remaining} {it.unit}
+                              Total: {totalQty} {unit} | Already Dispatched: {dispatched} {unit} | Available: {remaining} {unit}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -385,7 +391,7 @@ export default function DispatchesPage() {
                               onChange={(e) =>
                                 setDispatchItemQuantities({
                                   ...dispatchItemQuantities,
-                                  [it.id]: Math.min(remaining, Math.max(0, Number(e.target.value))),
+                                  [it.id]: Math.min(remaining, Math.max(0, Number(e.target.value) || 0)),
                                 })
                               }
                               className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-right text-xs text-white"

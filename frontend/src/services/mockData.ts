@@ -314,9 +314,16 @@ export const DEMO_ORDERS = [
     status: 'READY_FOR_DISPATCH',
     enquiry: { id: 'enq-1', enquiryNumber: 'ENQ-2026-00001' },
     quotation: { id: 'qtn-1', quotationNumber: 'QTN-2026-00001' },
+    customer: {
+      id: 'c-1',
+      name: 'Rajesh Sharma',
+      companyName: 'Tata Power Industrial Solutions',
+      phone: '+91 98200 11223',
+      address: 'Plot 45, MIDC Industrial Area, Pune',
+    },
     items: [
-      { id: 'oi-1', description: '500kVA Industrial Step-Down Transformer', quantity: 1, rate: 650000, amount: 650000 },
-      { id: 'oi-2', description: 'Marshalling Box with Digital RTD Temperature Indicator', quantity: 1, rate: 100000, amount: 100000 },
+      { id: 'oi-1', description: '500kVA Industrial Step-Down Transformer', itemDescription: '500kVA Industrial Step-Down Transformer', quantity: 1, unit: 'Nos', dispatchedQty: 1, rate: 650000, amount: 650000 },
+      { id: 'oi-2', description: 'Marshalling Box with Digital RTD Temperature Indicator', itemDescription: 'Marshalling Box with Digital RTD Temperature Indicator', quantity: 1, unit: 'Nos', dispatchedQty: 0, rate: 100000, amount: 100000 },
     ],
     dispatches: [
       { id: 'dsp-1', dispatchNumber: 'DSP-2026-00001', status: 'IN_TRANSIT', courierName: 'TCI Freight', trackingNumber: 'TCI-PN-889921', dispatchDate: '2026-10-16T16:00:00.000Z' },
@@ -342,8 +349,15 @@ export const DEMO_ORDERS = [
     status: 'IN_PROGRESS',
     enquiry: { id: 'enq-2', enquiryNumber: 'ENQ-2026-00002' },
     quotation: { id: 'qtn-2', quotationNumber: 'QTN-2026-00002-R1' },
+    customer: {
+      id: 'c-2',
+      name: 'Vikram Mehta',
+      companyName: 'Adani Solar Infrastructure Ltd',
+      phone: '+91 98450 44556',
+      address: 'Solar Park Phase 2, Charanka, Gujarat',
+    },
     items: [
-      { id: 'oi-3', description: 'Modular HT Control Panels (33kV Vacuum Circuit Breaker)', quantity: 2, rate: 550000, amount: 1100000 },
+      { id: 'oi-3', description: 'Modular HT Control Panels (33kV Vacuum Circuit Breaker)', itemDescription: 'Modular HT Control Panels (33kV Vacuum Circuit Breaker)', quantity: 2, unit: 'Nos', dispatchedQty: 0, rate: 550000, amount: 1100000 },
     ],
     dispatches: [],
     invoices: [],
@@ -363,7 +377,19 @@ export const DEMO_DISPATCHES = [
     actualDeliveryDate: null,
     deliveryStatus: 'DISPATCHED',
     remarks: 'Consignment loaded on flatbed truck MH-12-AB-4455. Driver contact shared.',
-    order: { id: 'ord-1', orderNumber: 'ORD-2026-00001', customerName: 'Rajesh Sharma', companyName: 'Tata Power Industrial Solutions' },
+    order: {
+      id: 'ord-1',
+      orderNumber: 'ORD-2026-00001',
+      customerName: 'Rajesh Sharma',
+      companyName: 'Tata Power Industrial Solutions',
+      customer: {
+        id: 'c-1',
+        name: 'Rajesh Sharma',
+        companyName: 'Tata Power Industrial Solutions',
+        phone: '+91 98200 11223',
+        address: 'Plot 45, MIDC Industrial Area, Pune',
+      },
+    },
     items: [
       { id: 'di-1', description: '500kVA Industrial Step-Down Transformer', quantity: 1 },
     ],

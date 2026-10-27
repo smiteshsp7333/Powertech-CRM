@@ -205,10 +205,10 @@ export default function PurchasesPage() {
                         {new Date(pur.purchaseDate).toLocaleDateString()}
                       </td>
                       <td className="font-semibold text-white">
-                        {pur.supplier?.name}
-                        {pur.supplier?.companyName && (
+                        {pur.supplier?.name || (pur as any).supplierName || 'Industrial Vendor'}
+                        {(pur.supplier?.companyName || (pur as any).companyName) && (
                           <span className="block text-[10px] text-slate-400 font-normal">
-                            {pur.supplier.companyName}
+                            {pur.supplier?.companyName || (pur as any).companyName}
                           </span>
                         )}
                       </td>
@@ -224,7 +224,7 @@ export default function PurchasesPage() {
                         </span>
                       </td>
                       <td className="font-bold text-white text-xs">
-                        INR {pur.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        INR {(Number(pur.totalAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="text-right">
                         {hasPermission('PURCHASE', 'delete') && (

@@ -350,7 +350,7 @@ export default function QuotationsPage() {
                   quotations.map((q) => (
                     <tr key={q.id}>
                       <td className="font-bold text-purple-400">
-                        {q.fullNumber}
+                        {q.fullNumber || q.quotationNumber}
                         {q.revisionNumber > 0 && (
                           <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] bg-purple-900/60 text-purple-300 border border-purple-500/30">
                             Rev {q.revisionNumber}
@@ -361,21 +361,21 @@ export default function QuotationsPage() {
                         {new Date(q.quotationDate).toLocaleDateString()}
                       </td>
                       <td className="font-semibold text-white">
-                        {q.customer?.name}
-                        {q.customer?.companyName && (
+                        {q.customer?.name || (q as any).customerName || 'Industrial Client'}
+                        {(q.customer?.companyName || (q as any).companyName) && (
                           <span className="block text-[10px] text-slate-400 font-normal">
-                            {q.customer.companyName}
+                            {q.customer?.companyName || (q as any).companyName}
                           </span>
                         )}
                       </td>
                       <td className="text-slate-300 text-xs">
-                        INR {q.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        INR {(Number(q.subtotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="text-slate-400 text-xs">
-                        INR {q.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        INR {(Number(q.taxAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="font-bold text-white text-xs">
-                        INR {q.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        INR {(Number(q.totalAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td>
                         <span
@@ -399,7 +399,7 @@ export default function QuotationsPage() {
                           {/* Download PDF */}
                           {hasPermission('QUOTATION', 'export') && (
                             <button
-                              onClick={() => handleDownloadPdf(q.id, q.fullNumber)}
+                              onClick={() => handleDownloadPdf(q.id, q.fullNumber || q.quotationNumber)}
                               title="Download Server PDF"
                               className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
                             >
