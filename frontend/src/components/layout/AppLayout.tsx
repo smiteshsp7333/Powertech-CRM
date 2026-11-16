@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
@@ -124,15 +124,33 @@ const DEMO_ROLES = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout, hasPermission, switchRoleDemo } = useAuth();
+  const router = useRouter();
+  const { user, isLoading, logout, hasPermission, switchRoleDemo } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isLoading, router]);
 
   // Filter navigation links based on user role permissions
   const permittedNavItems = NAV_ITEMS.filter((item) => {
     if (!item.module) return true;
     return hasPermission(item.module, 'view');
   });
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1d] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold text-slate-400">Authenticating Powertech ERP...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0f1d] text-slate-100">

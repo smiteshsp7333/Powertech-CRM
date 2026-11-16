@@ -18,6 +18,7 @@ import {
   DEMO_CUSTOMERS,
   DEMO_SUPPLIERS,
 } from './mockData';
+import { generateQuotationPdf, generateInvoicePdf } from '../utils/pdfGenerator';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -101,7 +102,10 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
   // Auth: Current user
   if (cleanEndpoint === '/auth/me') {
     const savedUserStr = typeof window !== 'undefined' ? localStorage.getItem('powertech_user') : null;
-    const user = savedUserStr ? JSON.parse(savedUserStr) : DEMO_USERS['admin@powertech.com'];
+    if (!savedUserStr) {
+      throw new ApiError('Unauthenticated. Please sign in.', 401);
+    }
+    const user = JSON.parse(savedUserStr);
     return {
       success: true,
       data: user,
@@ -346,10 +350,22 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     return { success: true, data: newOrd } as unknown as T;
   }
 
-  if (cleanEndpoint.endsWith('/pdf')) {
-    return new Blob(['%PDF-1.4 Demo PDF content for Powertech CRM'], {
-      type: 'application/pdf',
-    }) as unknown as T;
+  // Commercial Quotation PDF Generation
+  if (cleanEndpoint.startsWith('/quotations/') && cleanEndpoint.endsWith('/pdf')) {
+    const id = cleanEndpoint.replace('/quotations/', '').replace('/pdf', '');
+    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const quotation = quotations.find((q) => q.id === id || q.quotationNumber === id || q.fullNumber === id) || quotations[0];
+    const pdfBlob = generateQuotationPdf(quotation);
+    return pdfBlob as unknown as T;
+  }
+
+  // Tax Invoice PDF Generation
+  if (cleanEndpoint.startsWith('/billing/') && cleanEndpoint.endsWith('/pdf')) {
+    const id = cleanEndpoint.replace('/billing/', '').replace('/pdf', '');
+    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoice = invoices.find((inv) => inv.id === id || inv.invoiceNumber === id) || invoices[0];
+    const pdfBlob = generateInvoicePdf(invoice);
+    return pdfBlob as unknown as T;
   }
 
   if (cleanEndpoint.startsWith('/quotations/') && method === 'DELETE') {

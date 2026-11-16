@@ -104,6 +104,40 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Quick Demo Credentials for Fast Client Access */}
+          <div className="mt-5 pt-4 border-t border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 block mb-2">
+              Corporate Access Credentials:
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@powertech.com');
+                  setPassword('Password@123');
+                }}
+                className="py-1.5 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] text-slate-300 font-medium text-left transition-colors"
+              >
+                <span className="text-white font-bold block">Super Admin</span>
+                <span className="text-[10px] text-slate-400 font-mono">admin@powertech.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('sales@powertech.com');
+                  setPassword('Password@123');
+                }}
+                className="py-1.5 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] text-slate-300 font-medium text-left transition-colors"
+              >
+                <span className="text-white font-bold block">Sales Officer</span>
+                <span className="text-[10px] text-slate-400 font-mono">sales@powertech.com</span>
+              </button>
+            </div>
+            <div className="text-[10px] text-slate-500 font-mono mt-2 text-center">
+              Default Password: Password@123
+            </div>
+          </div>
         </div>
 
         {/* Footer info */}
