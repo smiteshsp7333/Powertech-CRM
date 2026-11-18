@@ -1,20 +1,24 @@
 import { CompanyDailyEntry } from '../../types/ledger';
 import { SEED_ENTRIES } from './store';
 
-const REDIS_URL =
-  process.env.UPSTASH_REDIS_REST_URL ||
-  process.env.KV_REST_API_URL ||
-  process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL;
-
-const REDIS_TOKEN =
-  process.env.UPSTASH_REDIS_REST_TOKEN ||
-  process.env.KV_REST_API_TOKEN ||
-  process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN;
-
 const REDIS_KEY = 'powertech_group_billing_ledger_v1';
 
-// Server-side in-memory cache
+// Server-side in-memory fallback
 let serverMemoryCache: Record<string, CompanyDailyEntry> | null = null;
+
+function getCredentials() {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.KV_REST_API_URL ||
+    process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL;
+
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.KV_REST_API_TOKEN ||
+    process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN;
+
+  return { url, token };
+}
 
 function getInitialMap(): Record<string, CompanyDailyEntry> {
   const map: Record<string, CompanyDailyEntry> = {};
@@ -25,12 +29,17 @@ function getInitialMap(): Record<string, CompanyDailyEntry> {
 }
 
 export async function getCloudLedgerEntries(): Promise<Record<string, CompanyDailyEntry>> {
-  if (REDIS_URL && REDIS_TOKEN) {
+  const { url, token } = getCredentials();
+
+  if (url && token) {
     try {
-      const res = await fetch(`${REDIS_URL}/get/${REDIS_KEY}`, {
+      const res = await fetch(url, {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${REDIS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(['GET', REDIS_KEY]),
         cache: 'no-store',
       });
 
@@ -61,16 +70,17 @@ export async function saveCloudLedgerEntries(
   entries: Record<string, CompanyDailyEntry>
 ): Promise<boolean> {
   serverMemoryCache = entries;
+  const { url, token } = getCredentials();
 
-  if (REDIS_URL && REDIS_TOKEN) {
+  if (url && token) {
     try {
-      const res = await fetch(`${REDIS_URL}/set/${REDIS_KEY}`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${REDIS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(JSON.stringify(entries)),
+        body: JSON.stringify(['SET', REDIS_KEY, JSON.stringify(entries)]),
         cache: 'no-store',
       });
       return res.ok;
