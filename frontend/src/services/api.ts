@@ -79,7 +79,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
     }
 
-    const validPasswords = ['Password@123', 'admin123', 'password123'];
+    const validPasswords = ['Defe@6126', 'Password@123', 'admin123', 'password123'];
     if (!validPasswords.includes(password)) {
       throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
     }

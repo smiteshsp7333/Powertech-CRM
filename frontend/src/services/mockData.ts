@@ -95,6 +95,13 @@ export const DEMO_ROLES = [
 ];
 
 export const DEMO_USERS: Record<string, any> = {
+  'dubai@3050': {
+    id: 'user-admin',
+    name: 'Super Admin User',
+    email: 'Dubai@3050',
+    phone: '+91 98000 00001',
+    role: DEMO_ROLES[0],
+  },
   'admin@powertech.com': {
     id: 'user-admin',
     name: 'Super Admin User',

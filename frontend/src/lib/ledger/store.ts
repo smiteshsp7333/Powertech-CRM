@@ -1,10 +1,164 @@
 import { CompanyDailyEntry, CompanySummary, GroupGrandTotal } from '../../types/ledger';
 import { GROUP_COMPANIES } from './companies';
 
-const STORAGE_KEY = 'group_billing_ledger_prod_v1';
+const STORAGE_KEY = 'group_billing_ledger_nov2026_v2';
 
-// Clean production initialization - zero dummy data for live usage
-const SEED_ENTRIES: CompanyDailyEntry[] = [];
+// Real November figures from client spreadsheet (01/11/2026 - 17/11/2026)
+const SEED_ENTRIES: CompanyDailyEntry[] = [
+  {
+    id: 'pt-laser_2026-11-18',
+    companyId: 'pt-laser',
+    companyName: 'POWER TECH LASER',
+    date: '2026-11-18',
+    billing: 1351232,
+    otherBilling: 58032,
+    billingWithGst: 1594454,
+    paymentCollection: 1408469,
+    otherPayment: 24290,
+    todayBilling: 1652486,
+    todayPayment: 1432759,
+    paymentReceivedAt: '17-11-2026, 04:30 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'PTL Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'pt-i-laser_2026-11-18',
+    companyId: 'pt-i-laser',
+    companyName: 'POWER TECH I LASER',
+    date: '2026-11-18',
+    billing: 1135363,
+    otherBilling: 350,
+    billingWithGst: 1339728,
+    paymentCollection: 506609,
+    otherPayment: 350,
+    todayBilling: 1340078,
+    todayPayment: 506959,
+    paymentReceivedAt: '17-11-2026, 03:45 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'PTIL Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'pt-laser-works_2026-11-18',
+    companyId: 'pt-laser-works',
+    companyName: 'POWER TECH LASER WORKS',
+    date: '2026-11-18',
+    billing: 771859,
+    otherBilling: 8400,
+    billingWithGst: 910794,
+    paymentCollection: 564779,
+    otherPayment: 25515,
+    todayBilling: 919194,
+    todayPayment: 590294,
+    paymentReceivedAt: '17-11-2026, 05:15 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'PTLW Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'merit-i-laser_2026-11-18',
+    companyId: 'merit-i-laser',
+    companyName: 'MERIT I LASER',
+    date: '2026-11-18',
+    billing: 560080,
+    otherBilling: 0,
+    billingWithGst: 660894,
+    paymentCollection: 104332,
+    otherPayment: 0,
+    todayBilling: 660894,
+    todayPayment: 104332,
+    paymentReceivedAt: '17-11-2026, 02:20 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'MIL Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'pt-laser-cutting_2026-11-18',
+    companyId: 'pt-laser-cutting',
+    companyName: 'POWER TECH LASER CUTTING',
+    date: '2026-11-18',
+    billing: 2727678,
+    otherBilling: 5500,
+    billingWithGst: 3218660,
+    paymentCollection: 2453772,
+    otherPayment: 6362,
+    todayBilling: 3224160,
+    todayPayment: 2460134,
+    paymentReceivedAt: '17-11-2026, 04:00 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'PTLC Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'galaxy-laser-cutting_2026-11-18',
+    companyId: 'galaxy-laser-cutting',
+    companyName: 'GALAXY LASER CUTTING',
+    date: '2026-11-18',
+    billing: 640223,
+    otherBilling: 7000,
+    billingWithGst: 755463,
+    paymentCollection: 1863930,
+    otherPayment: 7000,
+    todayBilling: 762463,
+    todayPayment: 1870930,
+    paymentReceivedAt: '17-11-2026, 04:45 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'GLC Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'galaxy-pvd_2026-11-18',
+    companyId: 'galaxy-pvd',
+    companyName: 'GALAXY PVD COATING',
+    date: '2026-11-18',
+    billing: 1004675,
+    otherBilling: 356885,
+    billingWithGst: 1185517,
+    paymentCollection: 2158772,
+    otherPayment: 356885,
+    todayBilling: 1542402,
+    todayPayment: 2515657,
+    paymentReceivedAt: '17-11-2026, 06:10 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'GPVD Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'rainbow-pvd_2026-11-18',
+    companyId: 'rainbow-pvd',
+    companyName: 'RAINBOW PVD COATING',
+    date: '2026-11-18',
+    billing: 443746,
+    otherBilling: 490465,
+    billingWithGst: 523620,
+    paymentCollection: 422114,
+    otherPayment: 480080,
+    todayBilling: 1014085,
+    todayPayment: 902194,
+    paymentReceivedAt: '17-11-2026, 03:30 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'RPVD Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+  {
+    id: 'diamond-pvd_2026-11-18',
+    companyId: 'diamond-pvd',
+    companyName: 'DIAMOND PVD COATING',
+    date: '2026-11-18',
+    billing: 630223,
+    otherBilling: 719574,
+    billingWithGst: 743663,
+    paymentCollection: 1052839,
+    otherPayment: 665350,
+    todayBilling: 1463237,
+    todayPayment: 1718189,
+    paymentReceivedAt: '17-11-2026, 05:40 PM',
+    paymentMode: 'BANK_TRANSFER',
+    submittedBy: 'DPVD Operator',
+    submittedAt: '2026-11-18T10:00:00.000Z',
+  },
+];
 
 export function loadAllEntries(): Record<string, CompanyDailyEntry> {
   if (typeof window === 'undefined') {
@@ -63,17 +217,19 @@ export function computeConsolidatedSummary(
   summaries: CompanySummary[];
   grandTotal: GroupGrandTotal;
 } {
-  const targetMonthPrefix = targetDate.slice(0, 7); // e.g. "2026-10"
+  const targetMonthPrefix = targetDate.slice(0, 7); // e.g. "2026-11"
 
   const allEntriesList = Object.values(entriesMap);
 
   const summaries: CompanySummary[] = GROUP_COMPANIES.map((company) => {
     const todayKey = `${company.id}_${targetDate}`;
-    const todayEntry = entriesMap[todayKey];
 
     const companyMonthEntries = allEntriesList.filter(
       (e) => e.companyId === company.id && e.date.startsWith(targetMonthPrefix)
     );
+
+    // If exact date key found, use it; otherwise fallback to company's latest month entry
+    const todayEntry = entriesMap[todayKey] || companyMonthEntries[0];
 
     const billing = todayEntry?.billing || 0;
     const otherBilling = todayEntry?.otherBilling || 0;

@@ -169,7 +169,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Unit Location: {company.location} • Authorized Daily Financial Submission
+              Authorized Daily Financial Submission
             </p>
           </div>
         </div>
