@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Building2,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import { ModuleName } from '../../types';
 
@@ -36,6 +37,12 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  {
+    name: 'Daily Billing Ledger',
+    href: '/ledger',
+    icon: BookOpen,
+    accentColor: '#10b981',
+  },
   {
     name: 'Dashboard',
     href: '/dashboard',
@@ -238,11 +245,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <div className="hidden sm:flex items-center gap-2 text-xs">
+            <div className="hidden sm:flex items-center gap-2.5 text-xs">
               <span className="text-slate-400 font-medium">Domain:</span>
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 Powertech CRM & ERP
               </span>
+              <Link
+                href="/ledger"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition-all shadow-sm"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Daily Billing Ledger</span>
+              </Link>
             </div>
           </div>
 
