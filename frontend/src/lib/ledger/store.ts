@@ -1,7 +1,7 @@
 import { CompanyDailyEntry, CompanySummary, GroupGrandTotal } from '../../types/ledger';
 import { GROUP_COMPANIES } from './companies';
 
-export const STORAGE_KEY = 'group_billing_ledger_nov2026_v4';
+export const STORAGE_KEY = 'group_billing_ledger_nov2026_v5';
 
 // Audited November figures from client spreadsheet (Period: 01/11/2026 - 17/11/2026)
 // Stored under date 2026-11-17 as historical audited baseline

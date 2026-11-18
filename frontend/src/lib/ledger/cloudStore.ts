@@ -1,7 +1,7 @@
 import { CompanyDailyEntry } from '../../types/ledger';
 import { SEED_ENTRIES } from './store';
 
-const REDIS_KEY = 'powertech_group_billing_ledger_v1';
+const REDIS_KEY = 'powertech_group_billing_ledger_v2';
 
 // Server-side in-memory fallback
 let serverMemoryCache: Record<string, CompanyDailyEntry> | null = null;
@@ -102,6 +102,17 @@ export async function saveSingleCloudEntry(
     ...entry,
     id: key,
   };
+  await saveCloudLedgerEntries(all);
+  return all;
+}
+
+export async function deleteSingleCloudEntry(
+  companyId: string,
+  date: string
+): Promise<Record<string, CompanyDailyEntry>> {
+  const all = await getCloudLedgerEntries();
+  const key = `${companyId}_${date}`;
+  delete all[key];
   await saveCloudLedgerEntries(all);
   return all;
 }
