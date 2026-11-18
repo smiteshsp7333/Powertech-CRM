@@ -1,11 +1,11 @@
 import { CompanyDailyEntry, CompanySummary, GroupGrandTotal } from '../../types/ledger';
 import { GROUP_COMPANIES } from './companies';
 
-const STORAGE_KEY = 'group_billing_ledger_nov2026_v3';
+export const STORAGE_KEY = 'group_billing_ledger_nov2026_v4';
 
 // Audited November figures from client spreadsheet (Period: 01/11/2026 - 17/11/2026)
 // Stored under date 2026-11-17 as historical audited baseline
-const SEED_ENTRIES: CompanyDailyEntry[] = [
+export const SEED_ENTRIES: CompanyDailyEntry[] = [
   {
     id: 'pt-laser_2026-11-17',
     companyId: 'pt-laser',
@@ -191,6 +191,25 @@ export function loadAllEntries(): Record<string, CompanyDailyEntry> {
   }
 }
 
+export async function syncEntryToCloud(entry: CompanyDailyEntry): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const res = await fetch('/api/ledger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.entries) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(json.entries));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to publish entry to cloud API:', err);
+  }
+}
+
 export function saveCompanyDailyEntry(entry: CompanyDailyEntry): void {
   if (typeof window === 'undefined') return;
 
@@ -202,6 +221,7 @@ export function saveCompanyDailyEntry(entry: CompanyDailyEntry): void {
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  syncEntryToCloud(entry);
 }
 
 export function getCompanyEntries(companyId: string): CompanyDailyEntry[] {

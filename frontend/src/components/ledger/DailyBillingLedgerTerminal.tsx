@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserSession, CompanyDailyEntry } from '../../types/ledger';
-import { loadAllEntries, saveCompanyDailyEntry, computeConsolidatedSummary } from '../../lib/ledger/store';
+import { loadAllEntries, saveCompanyDailyEntry, computeConsolidatedSummary, STORAGE_KEY } from '../../lib/ledger/store';
 import ExecutiveHeader from './ExecutiveHeader';
 import MasterConsolidatedView from './MasterConsolidatedView';
 import CompanyEntryView from './CompanyEntryView';
@@ -23,6 +23,23 @@ export default function DailyBillingLedgerTerminal() {
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [modalCompanyId, setModalCompanyId] = useState<string | undefined>(undefined);
+
+  const syncFromCloud = async () => {
+    try {
+      const res = await fetch('/api/ledger', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.entries) {
+          setEntries(data.entries);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.entries));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync from cloud ledger:', err);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -48,8 +65,31 @@ export default function DailyBillingLedgerTerminal() {
       }
     }
 
+    // 1. Initial fast local load
     const loaded = loadAllEntries();
     setEntries(loaded);
+
+    // 2. Fetch latest live cloud database
+    syncFromCloud();
+
+    // 3. Keep all devices in real-time sync with 10s auto-polling
+    const interval = setInterval(syncFromCloud, 10000);
+
+    // 4. Also refresh immediately whenever user focuses the tab
+    const handleFocus = () => syncFromCloud();
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncFromCloud();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [router]);
 
   const handleLogout = () => {
@@ -59,10 +99,31 @@ export default function DailyBillingLedgerTerminal() {
     router.replace('/login');
   };
 
-  const handleSaveEntry = (entry: CompanyDailyEntry) => {
+  const handleSaveEntry = async (entry: CompanyDailyEntry) => {
+    // Optimistic local update
     saveCompanyDailyEntry(entry);
     const updated = loadAllEntries();
     setEntries(updated);
+
+    // Push to cloud backend
+    try {
+      const res = await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.entries) {
+          setEntries(data.entries);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.entries));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to publish entry to cloud API:', err);
+    }
   };
 
   const handleEditCompany = (companyId: string) => {
