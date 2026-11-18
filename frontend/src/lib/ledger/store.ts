@@ -1,15 +1,16 @@
 import { CompanyDailyEntry, CompanySummary, GroupGrandTotal } from '../../types/ledger';
 import { GROUP_COMPANIES } from './companies';
 
-const STORAGE_KEY = 'group_billing_ledger_nov2026_v2';
+const STORAGE_KEY = 'group_billing_ledger_nov2026_v3';
 
-// Real November figures from client spreadsheet (01/11/2026 - 17/11/2026)
+// Audited November figures from client spreadsheet (Period: 01/11/2026 - 17/11/2026)
+// Stored under date 2026-11-17 as historical audited baseline
 const SEED_ENTRIES: CompanyDailyEntry[] = [
   {
-    id: 'pt-laser_2026-11-18',
+    id: 'pt-laser_2026-11-17',
     companyId: 'pt-laser',
     companyName: 'POWER TECH LASER',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 1351232,
     otherBilling: 58032,
     billingWithGst: 1594454,
@@ -20,13 +21,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 04:30 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'PTL Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'pt-i-laser_2026-11-18',
+    id: 'pt-i-laser_2026-11-17',
     companyId: 'pt-i-laser',
     companyName: 'POWER TECH I LASER',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 1135363,
     otherBilling: 350,
     billingWithGst: 1339728,
@@ -37,13 +38,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 03:45 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'PTIL Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'pt-laser-works_2026-11-18',
+    id: 'pt-laser-works_2026-11-17',
     companyId: 'pt-laser-works',
     companyName: 'POWER TECH LASER WORKS',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 771859,
     otherBilling: 8400,
     billingWithGst: 910794,
@@ -54,13 +55,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 05:15 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'PTLW Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'merit-i-laser_2026-11-18',
+    id: 'merit-i-laser_2026-11-17',
     companyId: 'merit-i-laser',
     companyName: 'MERIT I LASER',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 560080,
     otherBilling: 0,
     billingWithGst: 660894,
@@ -71,13 +72,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 02:20 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'MIL Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'pt-laser-cutting_2026-11-18',
+    id: 'pt-laser-cutting_2026-11-17',
     companyId: 'pt-laser-cutting',
     companyName: 'POWER TECH LASER CUTTING',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 2727678,
     otherBilling: 5500,
     billingWithGst: 3218660,
@@ -88,13 +89,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 04:00 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'PTLC Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'galaxy-laser-cutting_2026-11-18',
+    id: 'galaxy-laser-cutting_2026-11-17',
     companyId: 'galaxy-laser-cutting',
     companyName: 'GALAXY LASER CUTTING',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 640223,
     otherBilling: 7000,
     billingWithGst: 755463,
@@ -105,13 +106,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 04:45 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'GLC Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'galaxy-pvd_2026-11-18',
+    id: 'galaxy-pvd_2026-11-17',
     companyId: 'galaxy-pvd',
     companyName: 'GALAXY PVD COATING',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 1004675,
     otherBilling: 356885,
     billingWithGst: 1185517,
@@ -122,13 +123,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 06:10 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'GPVD Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'rainbow-pvd_2026-11-18',
+    id: 'rainbow-pvd_2026-11-17',
     companyId: 'rainbow-pvd',
     companyName: 'RAINBOW PVD COATING',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 443746,
     otherBilling: 490465,
     billingWithGst: 523620,
@@ -139,13 +140,13 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 03:30 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'RPVD Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
   {
-    id: 'diamond-pvd_2026-11-18',
+    id: 'diamond-pvd_2026-11-17',
     companyId: 'diamond-pvd',
     companyName: 'DIAMOND PVD COATING',
-    date: '2026-11-18',
+    date: '2026-11-17',
     billing: 630223,
     otherBilling: 719574,
     billingWithGst: 743663,
@@ -156,7 +157,7 @@ const SEED_ENTRIES: CompanyDailyEntry[] = [
     paymentReceivedAt: '17-11-2026, 05:40 PM',
     paymentMode: 'BANK_TRANSFER',
     submittedBy: 'DPVD Operator',
-    submittedAt: '2026-11-18T10:00:00.000Z',
+    submittedAt: '2026-11-17T17:00:00.000Z',
   },
 ];
 
@@ -228,21 +229,17 @@ export function computeConsolidatedSummary(
       (e) => e.companyId === company.id && e.date.startsWith(targetMonthPrefix)
     );
 
-    // If exact date key found, use it; otherwise fallback to company's latest month entry
-    const todayEntry = entriesMap[todayKey] || companyMonthEntries[0];
+    // Strict date lookup: today shows only what was entered for this specific date
+    const todayEntry = entriesMap[todayKey];
 
     const billing = todayEntry?.billing || 0;
     const otherBilling = todayEntry?.otherBilling || 0;
     const billingWithGst =
       todayEntry?.billingWithGst || (billing > 0 ? Math.round(billing * 1.18) : todayEntry?.todayBilling || 0);
-    const paymentCollection =
-      todayEntry?.paymentCollection ||
-      (todayEntry ? Math.round(todayEntry.todayPayment * 0.95) : 0);
-    const otherPayment =
-      todayEntry?.otherPayment ||
-      (todayEntry ? Math.round(todayEntry.todayPayment * 0.05) : 0);
-    const todayBilling = todayEntry?.todayBilling || billingWithGst + otherBilling;
-    const todayPayment = todayEntry?.todayPayment || paymentCollection + otherPayment;
+    const paymentCollection = todayEntry?.paymentCollection || 0;
+    const otherPayment = todayEntry?.otherPayment || 0;
+    const todayBilling = todayEntry?.todayBilling || (billingWithGst + otherBilling);
+    const todayPayment = todayEntry?.todayPayment || (paymentCollection + otherPayment);
 
     const monthBilling = companyMonthEntries.reduce(
       (acc, e) => acc + (e.billing || Math.round(e.todayBilling / 1.18)),

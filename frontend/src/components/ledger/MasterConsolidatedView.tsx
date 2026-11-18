@@ -802,8 +802,8 @@ export default function MasterConsolidatedView({
                     >
                       {isPvd ? 'PVD' : 'LASER'}
                     </span>
-                    <span className="text-xs font-bold font-sans text-slate-400">
-                      ₹{Math.round((isMonthly ? s.monthBilling : s.billing) / 1000)}k
+                    <span className="text-xs font-bold font-sans text-slate-300">
+                      ₹{(isMonthly ? s.monthBilling : s.billing).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </button>
