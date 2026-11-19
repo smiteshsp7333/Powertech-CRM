@@ -25,7 +25,12 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
   const assignedCompanyId = currentUser.companyId || 'merit-i-laser';
   const company = GROUP_COMPANIES.find((c) => c.id === assignedCompanyId) || GROUP_COMPANIES[0];
 
-  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const todayDateStr = today.toISOString().slice(0, 10);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayDateStr = yesterday.toISOString().slice(0, 10);
 
   const [date, setDate] = useState(selectedDate);
   const [billingWithGst, setBillingWithGst] = useState('');
@@ -37,9 +42,10 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<CompanyDailyEntry[]>([]);
 
-  // Same-day edit rule:
-  // Can only edit if the date being entered/viewed is today's current calendar date or the active register date
-  const isSameDay = date === todayDateStr || date === selectedDate;
+  // Editing permissions: Allowed for Today, Yesterday (Special Update Window), or active selected register date
+  const isToday = date === todayDateStr;
+  const isYesterday = date === yesterdayDateStr;
+  const isEditable = isToday || isYesterday || date === selectedDate;
 
   useEffect(() => {
     setDate(selectedDate);
@@ -95,9 +101,9 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
     e.preventDefault();
     setErrorMessage(null);
 
-    // Enforce Same-day edit rule
-    if (!isSameDay) {
-      setErrorMessage('Entries can only be edited on the same day when made. Past dates are locked.');
+    // Enforce edit rule: Today, Yesterday, or active date allowed
+    if (!isEditable) {
+      setErrorMessage('Entries older than yesterday are locked. Contact Super Admin for historical revisions.');
       return;
     }
 
@@ -174,35 +180,93 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
           </div>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex items-center gap-2 bg-[#0b1329] px-3.5 py-2 rounded-xl border border-slate-800 self-start sm:self-auto">
-          <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              refreshHistory(e.target.value);
+        {/* Quick Date Switcher: Today vs Yesterday Exception Window */}
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setDate(todayDateStr);
+              refreshHistory(todayDateStr);
             }}
-            className="bg-transparent border-none text-white text-xs font-sans font-bold focus:outline-none cursor-pointer"
-            title="Select date for entry"
-          />
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              isToday
+                ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/30'
+                : 'bg-[#0b1329] text-slate-300 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            Today ({todayDateStr.split('-').reverse().join('-')})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDate(yesterdayDateStr);
+              refreshHistory(yesterdayDateStr);
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              isYesterday
+                ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/30'
+                : 'bg-[#0b1329] text-purple-300 border-purple-900/60 hover:border-purple-600/50'
+            }`}
+          >
+            Update Yesterday ({yesterdayDateStr.split('-').reverse().join('-')})
+          </button>
+
+          {/* Custom Date Selector */}
+          <div className="flex items-center gap-2 bg-[#0b1329] px-3.5 py-2 rounded-xl border border-slate-800">
+            <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                refreshHistory(e.target.value);
+              }}
+              className="bg-transparent border-none text-white text-xs font-sans font-bold focus:outline-none cursor-pointer"
+              title="Select date for entry"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Same-Day Edit Security Notice */}
-      {!isSameDay ? (
+      {/* Entry Permission & Status Notice */}
+      {isYesterday ? (
+        <div className="p-4 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between gap-3 text-purple-200 text-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-purple-400" />
+            <span>
+              <strong>Yesterday's Data Entry Window Active:</strong> You are authorized to enter and submit operational figures for yesterday ({date.split('-').reverse().join('-')}).
+            </span>
+          </div>
+          <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+            Exception Enabled
+          </span>
+        </div>
+      ) : isToday ? (
+        <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between gap-2.5 text-blue-300 text-xs">
+          <div className="flex items-center gap-2.5">
+            <Edit3 className="w-4 h-4 shrink-0 text-blue-400" />
+            <span>
+              <strong>Today's Live Entry Active:</strong> Submit and revise figures for today ({date.split('-').reverse().join('-')}).
+            </span>
+          </div>
+          <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            Current Day
+          </span>
+        </div>
+      ) : isEditable ? (
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-2.5 text-emerald-300 text-xs">
+          <div className="flex items-center gap-2.5">
+            <Edit3 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>
+              <strong>Active Register Date:</strong> Editing figures for {date.split('-').reverse().join('-')}.
+            </span>
+          </div>
+        </div>
+      ) : (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-300 text-xs">
           <Lock className="w-4 h-4 shrink-0 text-amber-400" />
           <span>
-            <strong>Entry Locked (Past Date):</strong> Daily entries can only be edited on the same calendar day when made. This past record ({date}) is read-only.
-          </span>
-        </div>
-      ) : (
-        <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-2.5 text-blue-300 text-xs">
-          <Edit3 className="w-4 h-4 shrink-0 text-blue-400" />
-          <span>
-            <strong>Same-Day Entry Active:</strong> You can submit and revise figures for {date}.
+            <strong>Entry Locked (Archived Past Date):</strong> Only today and yesterday's entries are open for modifications. Past record ({date.split('-').reverse().join('-')}) is read-only.
           </span>
         </div>
       )}
@@ -254,7 +318,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
             <div className="relative">
               <input
                 type="number"
-                disabled={!isSameDay}
+                disabled={!isEditable}
                 value={billingWithGst}
                 onChange={(e) => setBillingWithGst(e.target.value)}
                 placeholder="e.g. 118000"
@@ -274,7 +338,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
             </label>
             <input
               type="number"
-              disabled={!isSameDay}
+              disabled={!isEditable}
               value={otherBilling}
               onChange={(e) => setOtherBilling(e.target.value)}
               placeholder="e.g. 5000"
@@ -292,7 +356,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
             </label>
             <input
               type="number"
-              disabled={!isSameDay}
+              disabled={!isEditable}
               value={paymentCollection}
               onChange={(e) => setPaymentCollection(e.target.value)}
               placeholder="e.g. 110000"
@@ -311,7 +375,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
             </label>
             <input
               type="number"
-              disabled={!isSameDay}
+              disabled={!isEditable}
               value={otherPayment}
               onChange={(e) => setOtherPayment(e.target.value)}
               placeholder="e.g. 5000"
@@ -357,7 +421,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
           </label>
           <input
             type="text"
-            disabled={!isSameDay}
+            disabled={!isEditable}
             value={paymentReceivedAt}
             onChange={(e) => setPaymentReceivedAt(e.target.value)}
             placeholder="e.g. 23-10-2026, 04:15 PM"
@@ -369,7 +433,7 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
         <div className="pt-2 flex justify-end">
           <button
             type="submit"
-            disabled={!isSameDay}
+            disabled={!isEditable}
             className="w-full sm:w-auto px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Check className="w-4 h-4" />
@@ -415,7 +479,10 @@ export default function CompanyEntryView({ currentUser, selectedDate }: CompanyE
                 </tr>
               ) : (
                 last7DaysHistory.map((row) => {
-                  const canEditThisRow = row.date === todayDateStr || row.date === selectedDate;
+                  const canEditThisRow =
+                    row.date === todayDateStr ||
+                    row.date === yesterdayDateStr ||
+                    row.date === selectedDate;
                   const rowBWithGst =
                     row.billingWithGst ||
                     (row.billing ? Math.round(row.billing * 1.18) : row.todayBilling);

@@ -220,7 +220,7 @@ export default function LoginPage() {
                   type={activeTab === 'LEDGER' ? 'text' : 'email'}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={activeTab === 'LEDGER' ? 'e.g. Dubai@3050 or ptlaser' : 'Dubai@3050 or name@powertech.com'}
+                  placeholder={activeTab === 'LEDGER' ? 'Enter username or email' : 'Enter corporate email'}
                   required
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0b1329] border border-slate-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder-slate-500 transition-colors font-sans"
                 />
