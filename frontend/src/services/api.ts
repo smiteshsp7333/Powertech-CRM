@@ -79,8 +79,9 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
     }
 
-    const validPasswords = ['Defe@6126', 'Password@123', 'admin123', 'password123'];
-    if (!validPasswords.includes(password)) {
+    const matchesSpecific = user.password && user.password === password;
+    const isSuperAdminPass = password === 'Defe@6126' || password === 'Admin@PTL2026';
+    if (!matchesSpecific && !isSuperAdminPass) {
       throw new ApiError('Invalid email or password. Please verify your credentials.', 401);
     }
 
@@ -1014,12 +1015,13 @@ export const api = {
   // Enquiries
   getEnquiries: (params: Record<string, string> = {}) => {
     const query = new URLSearchParams(params).toString();
-    return request(`/enquiries?${query}`);
+    return request(`/crm/enquiries?${query}`);
   },
-  getEnquiryById: (id: string) => request(`/enquiries/${id}`),
-  createEnquiry: (data: any) => request('/enquiries', { method: 'POST', body: JSON.stringify(data) }),
-  updateEnquiry: (id: string, data: any) => request(`/enquiries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteEnquiry: (id: string) => request(`/enquiries/${id}`, { method: 'DELETE' }),
+  getEnquiryById: (id: string) => request(`/crm/enquiries?id=${id}`),
+  createEnquiry: (data: any) => request('/crm/enquiries', { method: 'POST', body: JSON.stringify(data) }),
+  updateEnquiry: (id: string, data: any) =>
+    request('/crm/enquiries', { method: 'PATCH', body: JSON.stringify({ id, fields: data }) }),
+  deleteEnquiry: (id: string) => request(`/crm/enquiries?id=${id}`, { method: 'DELETE' }),
 
   // Quotations
   getQuotations: (params: Record<string, string> = {}) => {

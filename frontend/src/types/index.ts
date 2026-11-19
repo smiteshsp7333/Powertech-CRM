@@ -49,6 +49,16 @@ export interface Customer {
   gstin?: string | null;
 }
 
+export interface EnquiryAttachment {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  fileData?: string; // base64 or URL
+  uploadedAt: string;
+  uploadedBy?: string;
+}
+
 export interface Enquiry {
   id: string;
   enquiryNumber: string;
@@ -57,15 +67,17 @@ export interface Enquiry {
   customer?: Customer | null;
   customerType: 'INDIVIDUAL' | 'COMPANY';
   customerName: string;
+  companyName?: string | null;
   phone: string;
   address?: string | null;
   requirements: string;
   remarks?: string | null;
-  status: 'OPEN' | 'QUOTATION_PREPARED' | 'ORDER_PLACED' | 'CLOSED_LOST';
+  status: 'OPEN' | 'QUOTATION_PREPARED' | 'ORDER_PLACED' | 'CLOSED_LOST' | 'CANCELLED';
   assignedUserId?: string | null;
   assignedUser?: { id: string; name: string; email: string } | null;
   createdBy?: { id: string; name: string } | null;
   createdAt: string;
+  attachments?: EnquiryAttachment[];
   quotations?: Quotation[];
   orders?: Order[];
   timeline?: { id: string; action: string; description: string; performedBy: string; createdAt: string }[];

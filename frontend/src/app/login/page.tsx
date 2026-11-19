@@ -102,20 +102,20 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const trimmedId = identifier.trim();
+    const trimmedId = identifier.trim().toLowerCase();
     const trimmedPass = password.trim();
 
     try {
       if (
-        (trimmedId.toLowerCase() === 'dubai@3050' || trimmedId.toLowerCase() === 'admin') &&
-        (trimmedPass === 'Defe@6126' || trimmedPass === 'Password@123' || trimmedPass === 'admin123')
+        (trimmedId === 'dubai@3050' || trimmedId === 'admin' || trimmedId === 'admin@powertechlaser.in') &&
+        (trimmedPass === 'Defe@6126' || trimmedPass === 'Admin@PTL2026')
       ) {
-        await crmLogin('dubai@3050', 'Defe@6126');
+        await crmLogin('admin@powertechlaser.in', 'Admin@PTL2026');
         router.push('/dashboard');
         return;
       }
 
-      await crmLogin(identifier, password);
+      await crmLogin(trimmedId, trimmedPass);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please verify your corporate email and password.');
