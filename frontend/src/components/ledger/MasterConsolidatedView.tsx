@@ -23,6 +23,7 @@ import {
   Receipt,
   CreditCard,
   LayoutDashboard,
+  Lock,
 } from 'lucide-react';
 
 interface MasterConsolidatedViewProps {
@@ -34,7 +35,9 @@ interface MasterConsolidatedViewProps {
   onEditCompany: (companyId: string) => void;
   selectedCompanyFilter: string | null;
   setSelectedCompanyFilter: (id: string | null) => void;
-  ledgerSettings?: { allowNov18Update: boolean };
+  unlockedDates?: string[];
+  onToggleDatePermission?: (date: string, unlock: boolean) => void;
+  ledgerSettings?: { allowNov18Update?: boolean; unlockedDates?: string[] };
   onToggleNov18Permission?: (enabled: boolean) => void;
 }
 
@@ -49,6 +52,8 @@ export default function MasterConsolidatedView({
   onEditCompany,
   selectedCompanyFilter,
   setSelectedCompanyFilter,
+  unlockedDates,
+  onToggleDatePermission,
   ledgerSettings,
   onToggleNov18Permission,
 }: MasterConsolidatedViewProps) {
@@ -56,6 +61,15 @@ export default function MasterConsolidatedView({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedDivision, setSelectedDivision] = useState<DivisionFilter>('ALL');
   const [showDivisionBoxes, setShowDivisionBoxes] = useState<boolean>(true);
+  const [adminTargetDate, setAdminTargetDate] = useState<string>('2026-11-18');
+
+  const currentUnlockedDates = useMemo(() => {
+    if (Array.isArray(unlockedDates)) return unlockedDates;
+    if (Array.isArray(ledgerSettings?.unlockedDates)) return ledgerSettings.unlockedDates;
+    return ledgerSettings?.allowNov18Update ? ['2026-11-18'] : [];
+  }, [unlockedDates, ledgerSettings]);
+
+  const isTargetDateUnlocked = currentUnlockedDates.includes(adminTargetDate);
 
   const handleCopy = (id: string, text: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -284,58 +298,113 @@ export default function MasterConsolidatedView({
 
   return (
     <div className="space-y-6">
-      {/* Super Admin 18-Nov Historical Data Entry Authorization Control */}
-      <div className="bg-[#111c38] p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div
-            className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold border transition-colors ${
-              ledgerSettings?.allowNov18Update
-                ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-                : 'bg-slate-800/80 text-slate-500 border-slate-700/80'
-            }`}
-          >
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="text-sm font-bold text-white tracking-tight">
-                18-Nov-2026 Historical Entry Permission
-              </h3>
-              <span
-                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                  ledgerSettings?.allowNov18Update
-                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                    : 'bg-slate-800 text-slate-400 border-slate-700'
-                }`}
-              >
-                {ledgerSettings?.allowNov18Update ? 'Access Granted to All Units' : 'Access Locked'}
-              </span>
+      {/* Super Admin Dynamic Date Entry Authorization Control */}
+      <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold border transition-colors ${
+                currentUnlockedDates.length > 0
+                  ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                  : 'bg-slate-800/80 text-slate-500 border-slate-700/80'
+              }`}
+            >
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              {ledgerSettings?.allowNov18Update
-                ? 'All 9 operating unit consoles are authorized to submit and revise their 18-Nov-2026 figures.'
-                : '18-Nov-2026 entries are currently locked across all units. Click button to grant update access.'}
-            </p>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h3 className="text-sm font-bold text-white tracking-tight">
+                  Historical Date Entry Authorization (Super Admin Control)
+                </h3>
+                <span
+                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                    currentUnlockedDates.length > 0
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  {currentUnlockedDates.length > 0
+                    ? `${currentUnlockedDates.length} Date(s) Authorized`
+                    : 'All Historical Dates Locked'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Select any specific date below to grant or revoke data entry access for all 9 operating units.
+              </p>
+            </div>
+          </div>
+
+          {/* Date Picker & Action Button */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2 bg-[#0b1329] px-3.5 py-2 rounded-xl border border-slate-800">
+              <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
+              <input
+                type="date"
+                value={adminTargetDate}
+                onChange={(e) => setAdminTargetDate(e.target.value)}
+                className="bg-transparent border-none text-white text-xs font-sans font-bold focus:outline-none cursor-pointer"
+                title="Select date to authorize or lock"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onToggleDatePermission) {
+                  onToggleDatePermission(adminTargetDate, !isTargetDateUnlocked);
+                } else if (onToggleNov18Permission) {
+                  onToggleNov18Permission(!isTargetDateUnlocked);
+                }
+              }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 flex items-center gap-2 ${
+                isTargetDateUnlocked
+                  ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                  : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-600/30'
+              }`}
+            >
+              {isTargetDateUnlocked ? (
+                <>
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Lock / Revoke Access for {adminTargetDate.split('-').reverse().join('-')}</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Grant Access for {adminTargetDate.split('-').reverse().join('-')} to All Units</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        {onToggleNov18Permission && (
-          <button
-            type="button"
-            onClick={() => onToggleNov18Permission(!ledgerSettings?.allowNov18Update)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 flex items-center gap-2 ${
-              ledgerSettings?.allowNov18Update
-                ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
-                : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-600/30'
-            }`}
-          >
-            {ledgerSettings?.allowNov18Update ? (
-              <span>Revoke / Lock 18-Nov Access</span>
-            ) : (
-              <span>Grant 18-Nov Update Permission to All Units</span>
-            )}
-          </button>
-        )}
+        {/* Badges of Currently Unlocked Dates with 1-click revoke (x) */}
+        <div className="pt-3 border-t border-slate-800/80 flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-slate-400 font-semibold text-[11px]">
+            Active Authorized Historical Dates:
+          </span>
+          {currentUnlockedDates.length === 0 ? (
+            <span className="text-slate-500 italic text-[11px]">
+              None (only today is open for normal entries)
+            </span>
+          ) : (
+            currentUnlockedDates.map((d) => (
+              <span
+                key={d}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-200 border border-purple-500/30 font-sans font-bold text-[11px]"
+              >
+                <span>{d.split('-').reverse().join('-')}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggleDatePermission && onToggleDatePermission(d, false)}
+                  className="hover:text-rose-400 transition-colors p-0.5 rounded cursor-pointer"
+                  title={`Revoke access for ${d}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
       </div>
 
       {/* 5 Executive Metric Cards Aligned with Screenshot 1 Columns */}

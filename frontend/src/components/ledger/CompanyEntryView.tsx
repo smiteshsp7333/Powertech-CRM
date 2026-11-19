@@ -3,7 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { CompanyDailyEntry, UserSession } from '../../types/ledger';
 import { GROUP_COMPANIES } from '../../lib/ledger/companies';
-import { getCompanyEntries, saveCompanyDailyEntry } from '../../lib/ledger/store';
+import {
+  getCompanyEntries,
+  saveCompanyDailyEntry,
+  deleteCompanyDailyEntry,
+} from '../../lib/ledger/store';
 import {
   Calendar,
   Check,
@@ -14,17 +18,20 @@ import {
   Clock,
   Lock,
   Edit3,
+  Trash2,
 } from 'lucide-react';
 
 interface CompanyEntryViewProps {
   currentUser: UserSession;
   selectedDate: string;
+  unlockedDates?: string[];
   allowNov18Update?: boolean;
 }
 
 export default function CompanyEntryView({
   currentUser,
   selectedDate,
+  unlockedDates,
   allowNov18Update = true,
 }: CompanyEntryViewProps) {
   const assignedCompanyId = currentUser.companyId || 'merit-i-laser';
@@ -32,7 +39,13 @@ export default function CompanyEntryView({
 
   const today = new Date();
   const todayDateStr = today.toISOString().slice(0, 10);
-  const nov18DateStr = '2026-11-18';
+
+  const activeUnlockedDates =
+    Array.isArray(unlockedDates) && unlockedDates.length > 0
+      ? unlockedDates
+      : allowNov18Update
+      ? ['2026-11-18']
+      : [];
 
   const [date, setDate] = useState(selectedDate);
   const [billingWithGst, setBillingWithGst] = useState('');
@@ -44,12 +57,12 @@ export default function CompanyEntryView({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<CompanyDailyEntry[]>([]);
 
-  // Editing permissions:
+  // Permissions:
   // - Today is always editable
-  // - 18-Nov-2026 is editable when Super Admin has granted permission (allowNov18Update === true)
+  // - Any historical date present in activeUnlockedDates (authorized by Super Admin) is editable
   const isToday = date === todayDateStr;
-  const isNov18 = date === nov18DateStr;
-  const isEditable = isToday || (isNov18 && allowNov18Update) || date === selectedDate;
+  const isAuthorized = activeUnlockedDates.includes(date);
+  const isEditable = isToday || isAuthorized;
 
   useEffect(() => {
     setDate(selectedDate);
@@ -105,13 +118,9 @@ export default function CompanyEntryView({
     e.preventDefault();
     setErrorMessage(null);
 
-    // Enforce edit rule: Today, or 18-Nov if permitted by Super Admin
+    // Enforce edit rule: Today, or any date authorized by Super Admin
     if (!isEditable) {
-      if (isNov18 && !allowNov18Update) {
-        setErrorMessage('18-Nov-2026 entry is currently locked by Super Admin. Please request Super Admin to grant access.');
-      } else {
-        setErrorMessage('This date is locked. Only today and admin-authorized dates can be edited.');
-      }
+      setErrorMessage(`Entry for ${date.split('-').reverse().join('-')} is locked by Super Admin. Only today and admin-authorized dates can be edited.`);
       return;
     }
 
@@ -159,10 +168,27 @@ export default function CompanyEntryView({
     }, 3500);
   };
 
+  const handleDeleteEntry = () => {
+    if (typeof window !== 'undefined') {
+      const confirmDelete = window.confirm(`Are you sure you want to remove the entry for ${date.split('-').reverse().join('-')}?`);
+      if (!confirmDelete) return;
+    }
+    deleteCompanyDailyEntry(company.id, date);
+    setBillingWithGst('');
+    setOtherBilling('0');
+    setPaymentCollection('');
+    setOtherPayment('0');
+    setPaymentReceivedAt(getDefaultDateTime(date));
+    refreshHistory(date);
+    setSavedSuccess(false);
+  };
+
   const handleSelectDateToEdit = (selectedHistoryDate: string) => {
     setDate(selectedHistoryDate);
     refreshHistory(selectedHistoryDate);
   };
+
+  const existingEntryForDate = history.find((e) => e.date === date);
 
   // Restrict submission log to last 7 days only
   const last7DaysHistory = history.slice(0, 7);
@@ -188,7 +214,7 @@ export default function CompanyEntryView({
           </div>
         </div>
 
-        {/* Quick Date Switcher: Today vs 18-Nov-2026 Admin Exception */}
+        {/* Quick Date Switcher: Today vs Admin Authorized Historical Dates */}
         <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
           <button
             type="button"
@@ -204,22 +230,28 @@ export default function CompanyEntryView({
           >
             Today ({todayDateStr.split('-').reverse().join('-')})
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDate(nov18DateStr);
-              refreshHistory(nov18DateStr);
-            }}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-              isNov18
-                ? allowNov18Update
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/30'
-                  : 'bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-600/30'
-                : 'bg-[#0b1329] text-purple-300 border-purple-900/60 hover:border-purple-600/50'
-            }`}
-          >
-            Update 18-Nov-2026 {allowNov18Update ? '(Admin Authorized)' : '(Locked)'}
-          </button>
+
+          {activeUnlockedDates.map((unlockedD) => {
+            const isSelected = date === unlockedD;
+            const formatted = unlockedD.split('-').reverse().join('-');
+            return (
+              <button
+                key={unlockedD}
+                type="button"
+                onClick={() => {
+                  setDate(unlockedD);
+                  refreshHistory(unlockedD);
+                }}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isSelected
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/30'
+                    : 'bg-[#0b1329] text-purple-300 border-purple-900/60 hover:border-purple-600/50'
+                }`}
+              >
+                Update {formatted} (Admin Authorized)
+              </button>
+            );
+          })}
 
           {/* Custom Date Selector */}
           <div className="flex items-center gap-2 bg-[#0b1329] px-3.5 py-2 rounded-xl border border-slate-800">
@@ -239,32 +271,18 @@ export default function CompanyEntryView({
       </div>
 
       {/* Entry Permission & Status Notice */}
-      {isNov18 ? (
-        allowNov18Update ? (
-          <div className="p-4 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between gap-3 text-purple-200 text-xs shadow-md">
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-purple-400" />
-              <span>
-                <strong>18-Nov-2026 Data Entry Window Open:</strong> Super Admin has authorized all operating units to submit and revise figures for 18th November.
-              </span>
-            </div>
-            <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-purple-500/25 text-purple-300 border border-purple-500/40">
-              Admin Permitted
+      {isAuthorized && !isToday ? (
+        <div className="p-4 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between gap-3 text-purple-200 text-xs shadow-md">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-purple-400" />
+            <span>
+              <strong>Special Entry Window Open:</strong> Super Admin has authorized all operating units to submit and revise figures for {date.split('-').reverse().join('-')}.
             </span>
           </div>
-        ) : (
-          <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-200 text-xs shadow-md">
-            <div className="flex items-center gap-2.5">
-              <Lock className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>
-                <strong>18-Nov-2026 Entry Locked:</strong> Permission to edit 18th Nov is currently locked by Super Admin.
-              </span>
-            </div>
-            <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40">
-              Access Locked
-            </span>
-          </div>
-        )
+          <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-purple-500/25 text-purple-300 border border-purple-500/40">
+            Admin Permitted
+          </span>
+        </div>
       ) : isToday ? (
         <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between gap-2.5 text-blue-300 text-xs">
           <div className="flex items-center gap-2.5">
@@ -277,20 +295,16 @@ export default function CompanyEntryView({
             Current Day
           </span>
         </div>
-      ) : isEditable ? (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-2.5 text-emerald-300 text-xs">
+      ) : (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-300 text-xs">
           <div className="flex items-center gap-2.5">
-            <Edit3 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <Lock className="w-4 h-4 shrink-0 text-amber-400" />
             <span>
-              <strong>Active Register Date:</strong> Editing figures for {date.split('-').reverse().join('-')}.
+              <strong>Entry Locked (Archived Past Date):</strong> Permission to edit {date.split('-').reverse().join('-')} is currently locked. Request Super Admin to grant access if required.
             </span>
           </div>
-        </div>
-      ) : (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-300 text-xs">
-          <Lock className="w-4 h-4 shrink-0 text-amber-400" />
-          <span>
-            <strong>Entry Locked (Archived Past Date):</strong> Only today and admin-authorized historical dates can be modified. Past record ({date.split('-').reverse().join('-')}) is read-only.
+          <span className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40">
+            Access Locked
           </span>
         </div>
       )}
@@ -453,8 +467,21 @@ export default function CompanyEntryView({
           />
         </div>
 
-        {/* Submit Button */}
-        <div className="pt-2 flex justify-end">
+        {/* Submit & Delete Buttons */}
+        <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+          {existingEntryForDate && isEditable ? (
+            <button
+              type="button"
+              onClick={handleDeleteEntry}
+              className="px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Remove / Clear This Entry</span>
+            </button>
+          ) : (
+            <div />
+          )}
+
           <button
             type="submit"
             disabled={!isEditable}
@@ -504,9 +531,7 @@ export default function CompanyEntryView({
               ) : (
                 last7DaysHistory.map((row) => {
                   const canEditThisRow =
-                    row.date === todayDateStr ||
-                    (row.date === nov18DateStr && allowNov18Update) ||
-                    row.date === selectedDate;
+                    row.date === todayDateStr || activeUnlockedDates.includes(row.date);
                   const rowBWithGst =
                     row.billingWithGst ||
                     (row.billing ? Math.round(row.billing * 1.18) : row.todayBilling);
@@ -559,7 +584,7 @@ export default function CompanyEntryView({
                         ) : (
                           <span
                             className="px-2 py-1 rounded-lg bg-slate-800 text-slate-500 text-[10px] font-bold border border-slate-700/60 inline-flex items-center gap-1 cursor-not-allowed"
-                            title="Locked - Can only edit on the same day"
+                            title="Locked - Request Super Admin permission to revise"
                           >
                             <Lock className="w-3 h-3" />
                             <span>Locked</span>

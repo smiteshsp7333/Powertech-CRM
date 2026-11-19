@@ -224,6 +224,20 @@ export function saveCompanyDailyEntry(entry: CompanyDailyEntry): void {
   syncEntryToCloud(entry);
 }
 
+export function deleteCompanyDailyEntry(companyId: string, date: string): void {
+  if (typeof window === 'undefined') return;
+
+  const all = loadAllEntries();
+  const key = `${companyId}_${date}`;
+  delete all[key];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+
+  // Sync delete to cloud backend
+  fetch(`/api/ledger?companyId=${encodeURIComponent(companyId)}&date=${encodeURIComponent(date)}`, {
+    method: 'DELETE',
+  }).catch((err) => console.error('Failed to delete cloud entry:', err));
+}
+
 export function getCompanyEntries(companyId: string): CompanyDailyEntry[] {
   const all = loadAllEntries();
   return Object.values(all)

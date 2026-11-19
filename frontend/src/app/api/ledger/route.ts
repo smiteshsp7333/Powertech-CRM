@@ -5,6 +5,7 @@ import {
   deleteSingleCloudEntry,
   getCloudLedgerSettings,
   saveCloudLedgerSettings,
+  toggleCloudDateUnlock,
 } from '../../../lib/ledger/cloudStore';
 
 export const dynamic = 'force-dynamic';
@@ -50,11 +51,28 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const settings = await saveCloudLedgerSettings({
-      allowNov18Update: Boolean(body.allowNov18Update),
-      updatedAt: new Date().toISOString(),
-      updatedBy: body.updatedBy || 'Super Admin',
-    });
+    let settings;
+    if (body.date && typeof body.unlock === 'boolean') {
+      settings = await toggleCloudDateUnlock(
+        body.date,
+        body.unlock,
+        body.updatedBy || 'Super Admin'
+      );
+    } else if (Array.isArray(body.unlockedDates)) {
+      settings = await saveCloudLedgerSettings({
+        unlockedDates: body.unlockedDates,
+        updatedAt: new Date().toISOString(),
+        updatedBy: body.updatedBy || 'Super Admin',
+      });
+    } else if (typeof body.allowNov18Update === 'boolean') {
+      settings = await toggleCloudDateUnlock(
+        '2026-11-18',
+        body.allowNov18Update,
+        body.updatedBy || 'Super Admin'
+      );
+    } else {
+      settings = await getCloudLedgerSettings();
+    }
     return NextResponse.json({ success: true, settings });
   } catch (err: any) {
     return NextResponse.json(

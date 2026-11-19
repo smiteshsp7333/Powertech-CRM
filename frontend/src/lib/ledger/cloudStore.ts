@@ -118,14 +118,14 @@ export async function deleteSingleCloudEntry(
 }
 
 export interface LedgerSettings {
-  allowNov18Update: boolean;
+  unlockedDates: string[]; // Specific historical dates unlocked by Super Admin for data entry/revisions
   updatedAt?: string;
   updatedBy?: string;
 }
 
-const REDIS_SETTINGS_KEY = 'powertech_ledger_settings_v1';
+const REDIS_SETTINGS_KEY = 'powertech_ledger_settings_v2';
 let serverSettingsCache: LedgerSettings = {
-  allowNov18Update: true,
+  unlockedDates: ['2026-11-18'],
   updatedAt: new Date().toISOString(),
   updatedBy: 'Super Admin',
 };
@@ -147,7 +147,17 @@ export async function getCloudLedgerSettings(): Promise<LedgerSettings> {
         const json = await res.json();
         if (json && json.result !== null && json.result !== undefined) {
           const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
-          return parsed;
+          if (parsed) {
+            const dates = Array.isArray(parsed.unlockedDates)
+              ? parsed.unlockedDates
+              : parsed.allowNov18Update
+              ? ['2026-11-18']
+              : [];
+            return {
+              ...parsed,
+              unlockedDates: dates,
+            };
+          }
         }
       }
     } catch (err) {
@@ -176,4 +186,28 @@ export async function saveCloudLedgerSettings(settings: LedgerSettings): Promise
     }
   }
   return settings;
+}
+
+export async function toggleCloudDateUnlock(
+  targetDate: string,
+  unlock: boolean,
+  updatedBy = 'Super Admin'
+): Promise<LedgerSettings> {
+  const current = await getCloudLedgerSettings();
+  let dates = [...(current.unlockedDates || [])];
+  if (unlock) {
+    if (!dates.includes(targetDate)) {
+      dates.push(targetDate);
+    }
+  } else {
+    dates = dates.filter((d) => d !== targetDate);
+  }
+
+  const updated: LedgerSettings = {
+    unlockedDates: dates,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  };
+
+  return await saveCloudLedgerSettings(updated);
 }

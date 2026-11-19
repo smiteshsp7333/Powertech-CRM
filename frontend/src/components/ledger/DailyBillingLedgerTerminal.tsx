@@ -20,8 +20,12 @@ export default function DailyBillingLedgerTerminal() {
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string | null>(null);
 
   const [entries, setEntries] = useState<Record<string, CompanyDailyEntry>>({});
-  const [ledgerSettings, setLedgerSettings] = useState<{ allowNov18Update: boolean }>({
-    allowNov18Update: true,
+  const [ledgerSettings, setLedgerSettings] = useState<{
+    unlockedDates: string[];
+    updatedAt?: string;
+    updatedBy?: string;
+  }>({
+    unlockedDates: ['2026-11-18'],
   });
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
@@ -40,7 +44,15 @@ export default function DailyBillingLedgerTerminal() {
             }
           }
           if (data.settings) {
-            setLedgerSettings(data.settings);
+            const dates = Array.isArray(data.settings.unlockedDates)
+              ? data.settings.unlockedDates
+              : data.settings.allowNov18Update
+              ? ['2026-11-18']
+              : [];
+            setLedgerSettings({
+              ...data.settings,
+              unlockedDates: dates,
+            });
           }
         }
       }
@@ -139,26 +151,41 @@ export default function DailyBillingLedgerTerminal() {
     setEntryModalOpen(true);
   };
 
-  const handleToggleNov18Permission = async (enabled: boolean) => {
-    setLedgerSettings({ allowNov18Update: enabled });
+  const handleToggleDatePermission = async (targetDate: string, unlock: boolean) => {
+    let newDates = [...(ledgerSettings.unlockedDates || [])];
+    if (unlock) {
+      if (!newDates.includes(targetDate)) newDates.push(targetDate);
+    } else {
+      newDates = newDates.filter((d) => d !== targetDate);
+    }
+    setLedgerSettings((prev) => ({ ...prev, unlockedDates: newDates }));
+
     try {
       const res = await fetch('/api/ledger', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          allowNov18Update: enabled,
+          date: targetDate,
+          unlock,
           updatedBy: currentUser?.name || 'Super Admin',
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.settings) {
-          setLedgerSettings(data.settings);
+          const dates = Array.isArray(data.settings.unlockedDates)
+            ? data.settings.unlockedDates
+            : ['2026-11-18'];
+          setLedgerSettings({ ...data.settings, unlockedDates: dates });
         }
       }
     } catch (err) {
-      console.error('Failed to toggle Nov 18 permission:', err);
+      console.error('Failed to toggle date permission:', err);
     }
+  };
+
+  const handleToggleNov18Permission = (enabled: boolean) => {
+    handleToggleDatePermission('2026-11-18', enabled);
   };
 
   if (!isMounted || !currentUser) {
@@ -193,7 +220,8 @@ export default function DailyBillingLedgerTerminal() {
           <CompanyEntryView
             currentUser={currentUser}
             selectedDate={selectedDate}
-            allowNov18Update={ledgerSettings.allowNov18Update}
+            unlockedDates={ledgerSettings.unlockedDates}
+            allowNov18Update={ledgerSettings.unlockedDates?.includes('2026-11-18')}
           />
         ) : (
           <MasterConsolidatedView
@@ -205,7 +233,11 @@ export default function DailyBillingLedgerTerminal() {
             onEditCompany={handleEditCompany}
             selectedCompanyFilter={selectedCompanyFilter}
             setSelectedCompanyFilter={setSelectedCompanyFilter}
-            ledgerSettings={ledgerSettings}
+            unlockedDates={ledgerSettings.unlockedDates}
+            onToggleDatePermission={handleToggleDatePermission}
+            ledgerSettings={{
+              allowNov18Update: ledgerSettings.unlockedDates?.includes('2026-11-18'),
+            }}
             onToggleNov18Permission={handleToggleNov18Permission}
           />
         )}
