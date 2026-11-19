@@ -69,6 +69,38 @@ export default function QuotationsPage() {
       ]);
       if (cRes.success) setCustomers(cRes.data);
       if (eRes.success) setEnquiries(eRes.data);
+
+      // Auto-detect enquiryId passed from Enquiry Management
+      if (typeof window !== 'undefined') {
+        const p = new URLSearchParams(window.location.search);
+        const eqId = p.get('enquiryId');
+        const cName = p.get('customerName');
+        const req = p.get('requirements');
+        if (eqId) {
+          setSelectedEnquiryId(eqId);
+          if (cRes.data && cRes.data.length > 0) {
+            const matched = cRes.data.find(
+              (c: any) => c.name?.toLowerCase() === cName?.toLowerCase()
+            );
+            if (matched) setSelectedCustomerId(matched.id);
+            else setSelectedCustomerId(cRes.data[0].id);
+          }
+          if (req) {
+            setSpecificationNotes(req);
+            setLineItems([
+              {
+                itemDescription: 'Precision Laser Cutting / Fabrication',
+                specification: req,
+                quantity: 1,
+                unit: 'Job',
+                rate: 25000,
+                amount: 25000,
+              },
+            ]);
+          }
+          setCreateModalOpen(true);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -145,6 +177,11 @@ export default function QuotationsPage() {
       });
 
       if (res.success) {
+        if (selectedEnquiryId) {
+          await api
+            .updateEnquiry(selectedEnquiryId, { status: 'QUOTATION_PREPARED' })
+            .catch(() => {});
+        }
         setCreateModalOpen(false);
         resetForm();
         loadQuotations();
@@ -217,6 +254,11 @@ export default function QuotationsPage() {
       });
 
       if (res.success) {
+        if (activeQuotation.enquiryId) {
+          await api
+            .updateEnquiry(activeQuotation.enquiryId, { status: 'ORDER_CONFIRMED' })
+            .catch(() => {});
+        }
         alert(`Order ${res.data.orderNumber} successfully generated from Quotation!`);
         setConvertModalOpen(false);
         loadQuotations();

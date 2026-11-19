@@ -73,7 +73,17 @@ export default function BillingPage() {
   const loadOrdersList = async () => {
     try {
       const res = await api.getOrders({ limit: '50' });
-      if (res.success) setOrders(res.data);
+      if (res.success) {
+        setOrders(res.data);
+        if (typeof window !== 'undefined') {
+          const p = new URLSearchParams(window.location.search);
+          const oid = p.get('orderId');
+          if (oid) {
+            handleSelectOrder(oid);
+            setCreateModalOpen(true);
+          }
+        }
+      }
     } catch (err) {
       console.error(err);
     }

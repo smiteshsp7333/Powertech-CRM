@@ -475,10 +475,32 @@ export default function OrdersPage() {
                 )}
               </div>
 
-              <div className="flex justify-end pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-slate-800">
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/dispatches?orderId=${activeOrder.id}&customerName=${encodeURIComponent(
+                      activeOrder.customerName || activeOrder.customer?.name || ''
+                    )}`}
+                    className="px-3.5 py-2 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Create Dispatch / DC</span>
+                  </a>
+
+                  <a
+                    href={`/billing?orderId=${activeOrder.id}&customerName=${encodeURIComponent(
+                      activeOrder.customerName || activeOrder.customer?.name || ''
+                    )}`}
+                    className="px-3.5 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Generate Tax Invoice</span>
+                  </a>
+                </div>
+
                 <button
                   onClick={() => setDetailModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
                 >
                   Close Window
                 </button>

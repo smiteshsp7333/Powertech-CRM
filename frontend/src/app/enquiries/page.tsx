@@ -28,6 +28,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Enquiry, EnquiryAttachment } from '../../types';
+import { ENQUIRY_STATUSES, getStatusMeta } from '../../lib/crm/enquiryStatuses';
 
 const SALES_ENGINEERS = [
   { id: 'user-sales', name: 'Siddharth Sales', email: 'sales@powertechlaser.in' },
@@ -373,10 +374,11 @@ export default function EnquiriesPage() {
               className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 focus:border-blue-500 cursor-pointer"
             >
               <option value="">All Statuses</option>
-              <option value="OPEN">Open</option>
-              <option value="QUOTATION_PREPARED">Quotation Prepared</option>
-              <option value="ORDER_PLACED">Order Placed</option>
-              <option value="CANCELLED">Cancelled</option>
+              {ENQUIRY_STATUSES.map((st) => (
+                <option key={st.key} value={st.key}>
+                  {st.label}
+                </option>
+              ))}
             </select>
 
             <select
@@ -465,32 +467,33 @@ export default function EnquiriesPage() {
                         </select>
                       </td>
 
-                      {/* Interactive Status Selector */}
+                      {/* Interactive Status Selector (10 Status Stages) */}
                       <td className="py-3 px-3">
-                        <select
-                          value={enq.status}
-                          onChange={(e) =>
-                            handleQuickUpdateField(enq.id, {
-                              status: e.target.value as any,
-                            })
-                          }
-                          aria-label={`Status for ${enq.enquiryNumber}`}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer focus:outline-none ${
-                            enq.status === 'OPEN'
-                              ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                              : enq.status === 'QUOTATION_PREPARED'
-                              ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                              : enq.status === 'ORDER_PLACED'
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                              : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                          }`}
-                        >
-                          <option value="OPEN" className="bg-[#0b1329] text-blue-400">Open</option>
-                          <option value="QUOTATION_PREPARED" className="bg-[#0b1329] text-purple-400">Quotation Prepared</option>
-                          <option value="ORDER_PLACED" className="bg-[#0b1329] text-emerald-400">Order Placed</option>
-                          <option value="CANCELLED" className="bg-[#0b1329] text-rose-400">Cancelled</option>
-                          <option value="CLOSED_LOST" className="bg-[#0b1329] text-slate-400">Closed / Lost</option>
-                        </select>
+                        {(() => {
+                          const meta = getStatusMeta(enq.status);
+                          return (
+                            <select
+                              value={meta.key}
+                              onChange={(e) =>
+                                handleQuickUpdateField(enq.id, {
+                                  status: e.target.value as any,
+                                })
+                              }
+                              aria-label={`Status for ${enq.enquiryNumber}`}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer focus:outline-none ${meta.badgeBg} ${meta.textColor} ${meta.borderColor}`}
+                            >
+                              {ENQUIRY_STATUSES.map((st) => (
+                                <option
+                                  key={st.key}
+                                  value={st.key}
+                                  className="bg-[#0b1329] text-slate-200"
+                                >
+                                  {st.label}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </td>
 
                       {/* Interactive Assignee Selector */}
@@ -516,9 +519,24 @@ export default function EnquiriesPage() {
                         </select>
                       </td>
 
-                      {/* Actions: View, Edit, Delete */}
+                      {/* Actions: View, Edit, Link Quotation/Order, Delete */}
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Quick Link to Quotation */}
+                          <a
+                            href={`/quotations?enquiryId=${enq.id}&customerName=${encodeURIComponent(
+                              enq.customerName
+                            )}&companyName=${encodeURIComponent(
+                              enq.companyName || ''
+                            )}&phone=${encodeURIComponent(enq.phone)}&requirements=${encodeURIComponent(
+                              enq.requirements
+                            )}`}
+                            title="Prepare Commercial Quotation for this Enquiry"
+                            className="p-1.5 rounded-lg bg-purple-600/15 text-purple-400 hover:bg-purple-600/30 transition-colors cursor-pointer"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                          </a>
+
                           <button
                             onClick={() => handleViewDetail(enq.id)}
                             title="View Detail, Drawings & Timeline"
@@ -1033,9 +1051,16 @@ export default function EnquiriesPage() {
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
                       {selectedEnquiry.enquiryNumber}
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold badge-blue">
-                        {selectedEnquiry.status.replace('_', ' ')}
-                      </span>
+                      {(() => {
+                        const meta = getStatusMeta(selectedEnquiry.status);
+                        return (
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border ${meta.badgeBg} ${meta.textColor} ${meta.borderColor}`}
+                          >
+                            {meta.label}
+                          </span>
+                        );
+                      })()}
                     </h3>
                     <span className="text-xs text-slate-400">
                       Recorded on {new Date(selectedEnquiry.enquiryDate).toLocaleString()} &bull; Assigned to: {selectedEnquiry.assignedUser?.name || 'Unassigned'}
@@ -1187,18 +1212,34 @@ export default function EnquiriesPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    handleOpenEditModal(selectedEnquiry);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit This Enquiry</span>
-                </button>
+              <div className="flex flex-wrap justify-between items-center gap-2 pt-4 border-t border-slate-800">
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/quotations?enquiryId=${selectedEnquiry.id}&customerName=${encodeURIComponent(
+                      selectedEnquiry.customerName
+                    )}&companyName=${encodeURIComponent(
+                      selectedEnquiry.companyName || ''
+                    )}&phone=${encodeURIComponent(
+                      selectedEnquiry.phone
+                    )}&requirements=${encodeURIComponent(selectedEnquiry.requirements)}`}
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/20"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Prepare Commercial Quotation</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailModalOpen(false);
+                      handleOpenEditModal(selectedEnquiry);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit This Enquiry</span>
+                  </button>
+                </div>
 
                 <button
                   onClick={() => setDetailModalOpen(false)}

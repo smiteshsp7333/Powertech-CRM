@@ -59,6 +59,22 @@ export interface EnquiryAttachment {
   uploadedBy?: string;
 }
 
+export type EnquiryStatus =
+  | 'NEW_ENQUIRY'
+  | 'CONTACTED'
+  | 'FOLLOW_UP_REQUIRED'
+  | 'SITE_VISIT_SAMPLE'
+  | 'QUOTATION_PREPARED'
+  | 'QUOTATION_SENT'
+  | 'NEGOTIATION'
+  | 'ORDER_CONFIRMED'
+  | 'LOST'
+  | 'ON_HOLD'
+  | 'OPEN'
+  | 'ORDER_PLACED'
+  | 'CLOSED_LOST'
+  | 'CANCELLED';
+
 export interface Enquiry {
   id: string;
   enquiryNumber: string;
@@ -72,7 +88,7 @@ export interface Enquiry {
   address?: string | null;
   requirements: string;
   remarks?: string | null;
-  status: 'OPEN' | 'QUOTATION_PREPARED' | 'ORDER_PLACED' | 'CLOSED_LOST' | 'CANCELLED';
+  status: EnquiryStatus;
   assignedUserId?: string | null;
   assignedUser?: { id: string; name: string; email: string } | null;
   createdBy?: { id: string; name: string } | null;

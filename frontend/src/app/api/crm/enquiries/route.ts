@@ -44,7 +44,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (status) {
-      filtered = filtered.filter((e) => e.status === status);
+      filtered = filtered.filter((e) => {
+        if (e.status === status) return true;
+        if (status === 'NEW_ENQUIRY' && e.status === 'OPEN') return true;
+        if (status === 'ORDER_CONFIRMED' && e.status === 'ORDER_PLACED') return true;
+        if (status === 'LOST' && (e.status === 'CLOSED_LOST' || e.status === 'CANCELLED')) return true;
+        return false;
+      });
     }
 
     if (customerType) {
