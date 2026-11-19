@@ -34,6 +34,8 @@ interface MasterConsolidatedViewProps {
   onEditCompany: (companyId: string) => void;
   selectedCompanyFilter: string | null;
   setSelectedCompanyFilter: (id: string | null) => void;
+  ledgerSettings?: { allowNov18Update: boolean };
+  onToggleNov18Permission?: (enabled: boolean) => void;
 }
 
 export type DivisionFilter = 'ALL' | 'PVD' | 'LASER';
@@ -47,6 +49,8 @@ export default function MasterConsolidatedView({
   onEditCompany,
   selectedCompanyFilter,
   setSelectedCompanyFilter,
+  ledgerSettings,
+  onToggleNov18Permission,
 }: MasterConsolidatedViewProps) {
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -280,6 +284,60 @@ export default function MasterConsolidatedView({
 
   return (
     <div className="space-y-6">
+      {/* Super Admin 18-Nov Historical Data Entry Authorization Control */}
+      <div className="bg-[#111c38] p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold border transition-colors ${
+              ledgerSettings?.allowNov18Update
+                ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                : 'bg-slate-800/80 text-slate-500 border-slate-700/80'
+            }`}
+          >
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h3 className="text-sm font-bold text-white tracking-tight">
+                18-Nov-2026 Historical Entry Permission
+              </h3>
+              <span
+                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                  ledgerSettings?.allowNov18Update
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                {ledgerSettings?.allowNov18Update ? 'Access Granted to All Units' : 'Access Locked'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {ledgerSettings?.allowNov18Update
+                ? 'All 9 operating unit consoles are authorized to submit and revise their 18-Nov-2026 figures.'
+                : '18-Nov-2026 entries are currently locked across all units. Click button to grant update access.'}
+            </p>
+          </div>
+        </div>
+
+        {onToggleNov18Permission && (
+          <button
+            type="button"
+            onClick={() => onToggleNov18Permission(!ledgerSettings?.allowNov18Update)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 flex items-center gap-2 ${
+              ledgerSettings?.allowNov18Update
+                ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-600/30'
+            }`}
+          >
+            {ledgerSettings?.allowNov18Update ? (
+              <span>Revoke / Lock 18-Nov Access</span>
+            ) : (
+              <span>Grant 18-Nov Update Permission to All Units</span>
+            )}
+          </button>
+        )}
+      </div>
+
       {/* 5 Executive Metric Cards Aligned with Screenshot 1 Columns */}
       {!isMonthly ? (
         // DAILY MATRIX METRIC CARDS

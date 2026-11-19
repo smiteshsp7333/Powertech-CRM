@@ -20,6 +20,9 @@ export default function DailyBillingLedgerTerminal() {
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string | null>(null);
 
   const [entries, setEntries] = useState<Record<string, CompanyDailyEntry>>({});
+  const [ledgerSettings, setLedgerSettings] = useState<{ allowNov18Update: boolean }>({
+    allowNov18Update: true,
+  });
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [modalCompanyId, setModalCompanyId] = useState<string | undefined>(undefined);
@@ -29,10 +32,15 @@ export default function DailyBillingLedgerTerminal() {
       const res = await fetch('/api/ledger', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (data && data.entries) {
-          setEntries(data.entries);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.entries));
+        if (data) {
+          if (data.entries) {
+            setEntries(data.entries);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.entries));
+            }
+          }
+          if (data.settings) {
+            setLedgerSettings(data.settings);
           }
         }
       }
@@ -131,6 +139,28 @@ export default function DailyBillingLedgerTerminal() {
     setEntryModalOpen(true);
   };
 
+  const handleToggleNov18Permission = async (enabled: boolean) => {
+    setLedgerSettings({ allowNov18Update: enabled });
+    try {
+      const res = await fetch('/api/ledger', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowNov18Update: enabled,
+          updatedBy: currentUser?.name || 'Super Admin',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.settings) {
+          setLedgerSettings(data.settings);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle Nov 18 permission:', err);
+    }
+  };
+
   if (!isMounted || !currentUser) {
     return (
       <div className="min-h-screen bg-[#070c18] flex items-center justify-center">
@@ -160,7 +190,11 @@ export default function DailyBillingLedgerTerminal() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
         {isOperator ? (
-          <CompanyEntryView currentUser={currentUser} selectedDate={selectedDate} />
+          <CompanyEntryView
+            currentUser={currentUser}
+            selectedDate={selectedDate}
+            allowNov18Update={ledgerSettings.allowNov18Update}
+          />
         ) : (
           <MasterConsolidatedView
             selectedDate={selectedDate}
@@ -171,6 +205,8 @@ export default function DailyBillingLedgerTerminal() {
             onEditCompany={handleEditCompany}
             selectedCompanyFilter={selectedCompanyFilter}
             setSelectedCompanyFilter={setSelectedCompanyFilter}
+            ledgerSettings={ledgerSettings}
+            onToggleNov18Permission={handleToggleNov18Permission}
           />
         )}
       </main>

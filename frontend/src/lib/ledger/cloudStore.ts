@@ -116,3 +116,64 @@ export async function deleteSingleCloudEntry(
   await saveCloudLedgerEntries(all);
   return all;
 }
+
+export interface LedgerSettings {
+  allowNov18Update: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+const REDIS_SETTINGS_KEY = 'powertech_ledger_settings_v1';
+let serverSettingsCache: LedgerSettings = {
+  allowNov18Update: true,
+  updatedAt: new Date().toISOString(),
+  updatedBy: 'Super Admin',
+};
+
+export async function getCloudLedgerSettings(): Promise<LedgerSettings> {
+  const { url, token } = getCredentials();
+  if (url && token) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['GET', REDIS_SETTINGS_KEY]),
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.result !== null && json.result !== undefined) {
+          const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching settings from Redis:', err);
+    }
+  }
+  return serverSettingsCache;
+}
+
+export async function saveCloudLedgerSettings(settings: LedgerSettings): Promise<LedgerSettings> {
+  serverSettingsCache = settings;
+  const { url, token } = getCredentials();
+  if (url && token) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['SET', REDIS_SETTINGS_KEY, JSON.stringify(settings)]),
+        cache: 'no-store',
+      });
+    } catch (err) {
+      console.error('Error saving settings to Redis:', err);
+    }
+  }
+  return settings;
+}
