@@ -113,8 +113,9 @@ export default function MasterConsolidatedView({
 
     const submittedCount = pvdSummaries.filter((s) => s.hasEntryToday).length;
     const recoveryRate = todayBilling > 0 ? ((todayPayment / todayBilling) * 100).toFixed(1) : '0.0';
+    const monthTotalInvoiced = monthBillingWithGst + monthOtherBilling;
     const monthRecoveryRate =
-      monthBilling > 0 ? ((monthPayment / monthBilling) * 100).toFixed(1) : '0.0';
+      monthTotalInvoiced > 0 ? ((monthPayment / monthTotalInvoiced) * 100).toFixed(1) : '0.0';
 
     return {
       billing,
@@ -157,8 +158,9 @@ export default function MasterConsolidatedView({
     const submittedCount = laserSummaries.filter((s) => s.hasEntryToday).length;
     const recoveryRate =
       todayBilling > 0 ? ((todayPayment / todayBilling) * 100).toFixed(1) : '0.0';
+    const monthTotalInvoiced = monthBillingWithGst + monthOtherBilling;
     const monthRecoveryRate =
-      monthBilling > 0 ? ((monthPayment / monthBilling) * 100).toFixed(1) : '0.0';
+      monthTotalInvoiced > 0 ? ((monthPayment / monthTotalInvoiced) * 100).toFixed(1) : '0.0';
 
     return {
       billing,
@@ -500,21 +502,21 @@ export default function MasterConsolidatedView({
             </span>
           </div>
 
-          {/* Box 5: Including GST (Gross Invoiced Billing) */}
+          {/* Box 5: Total Invoiced Billing (Billing with GST + Other Billing) */}
           <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800/80 shadow-xl transition-all hover:border-slate-700">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Including GST
+                Total Billing (GST + Other)
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                 <ShieldCheck className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-black font-sans text-blue-400 tracking-tight">
-              ₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}
+              ₹{(displayFooterTotal.billingWithGst + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
             </div>
             <span className="text-xs text-slate-400 mt-2 block truncate">
-              Gross Billing with 18% GST
+              Billing with GST (₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}) + Other (₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')})
             </span>
           </div>
         </div>
@@ -606,21 +608,21 @@ export default function MasterConsolidatedView({
             </span>
           </div>
 
-          {/* MTD Including GST */}
+          {/* MTD Total Billing (GST + Other) */}
           <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800/80 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                MTD Including GST
+                MTD Total Billing (GST + Other)
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                 <ShieldCheck className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-black font-sans text-blue-400 tracking-tight">
-              ₹{displayFooterTotal.monthBillingWithGst.toLocaleString('en-IN')}
+              ₹{(displayFooterTotal.monthBillingWithGst + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
             </div>
             <span className="text-xs text-slate-400 mt-2 block">
-              Cumulative Billing with GST
+              Cumulative Billing with GST + Other Billing
             </span>
           </div>
         </div>
@@ -930,7 +932,7 @@ export default function MasterConsolidatedView({
                       {isPvd ? 'PVD' : 'LASER'}
                     </span>
                     <span className="text-xs font-bold font-sans text-slate-300">
-                      ₹{(isMonthly ? s.monthBilling : s.billing).toLocaleString('en-IN')}
+                      ₹{(isMonthly ? (s.monthBillingWithGst + s.monthOtherBilling) : s.todayBilling).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </button>
@@ -1065,9 +1067,10 @@ export default function MasterConsolidatedView({
                     <th className="py-3 px-3.5">Company Name</th>
                     <th className="py-3 px-3 text-right">Billing</th>
                     <th className="py-3 px-3 text-right text-cyan-400">Other Billing</th>
+                    <th className="py-3 px-3 text-right text-blue-400">Including GST</th>
+                    <th className="py-3 px-3 text-right text-amber-400">Total Billing</th>
                     <th className="py-3 px-3 text-right text-emerald-400">Payment Collection</th>
                     <th className="py-3 px-3 text-right text-purple-400">Other Payment</th>
-                    <th className="py-3 px-3 text-right text-blue-400">Including GST</th>
                     <th className="py-3 px-3 text-center">Payment Received Date &amp; Time</th>
                     <th className="py-3 px-3 text-center">Status</th>
                     <th className="py-3 px-3 text-center">Action</th>
@@ -1117,22 +1120,27 @@ export default function MasterConsolidatedView({
                           ₹{(item.otherBilling || 0).toLocaleString('en-IN')}
                         </td>
 
-                        {/* Column 4: Payment Collection */}
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
-                          ₹{(item.paymentCollection || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 5: Other Payment */}
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
-                          ₹{(item.otherPayment || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 6: Including GST */}
+                        {/* Column 4: Including GST */}
                         <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
                           ₹{(item.billingWithGst || 0).toLocaleString('en-IN')}
                         </td>
 
-                        {/* Column 7: Payment Received Date & Time */}
+                        {/* Column 5: Total Billing = Billing with GST + Other Billing */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
+                          ₹{item.todayBilling.toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 6: Payment Collection */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
+                          ₹{(item.paymentCollection || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 7: Other Payment */}
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
+                          ₹{(item.otherPayment || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 8: Payment Received Date & Time */}
                         <td className="py-3.5 px-3 text-center text-xs">
                           {item.todayPayment > 0 ? (
                             <div className="inline-flex flex-col items-center">
@@ -1151,7 +1159,7 @@ export default function MasterConsolidatedView({
                           )}
                         </td>
 
-                        {/* Column 8: Status */}
+                        {/* Column 9: Status */}
                         <td className="py-3.5 px-3 text-center">
                           {item.hasEntryToday ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
@@ -1164,7 +1172,7 @@ export default function MasterConsolidatedView({
                           )}
                         </td>
 
-                        {/* Column 9: Action */}
+                        {/* Column 10: Action */}
                         <td className="py-3.5 px-3 text-center">
                           <button
                             type="button"
@@ -1192,14 +1200,17 @@ export default function MasterConsolidatedView({
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
                       ₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')}
                     </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
+                      ₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
+                      ₹{(displayFooterTotal.billingWithGst + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
+                    </td>
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
                       ₹{displayFooterTotal.paymentCollection.toLocaleString('en-IN')}
                     </td>
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
                       ₹{displayFooterTotal.otherPayment.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
-                      ₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}
                     </td>
                     <td className="py-4 px-3 text-center text-xs text-slate-300">
                       Live Timestamped
@@ -1221,9 +1232,10 @@ export default function MasterConsolidatedView({
                     <th className="py-3 px-3.5">Company Name</th>
                     <th className="py-3 px-3 text-right">Billing (MTD)</th>
                     <th className="py-3 px-3 text-right text-cyan-400">Other Billing (MTD)</th>
+                    <th className="py-3 px-3 text-right text-blue-400">Including GST (MTD)</th>
+                    <th className="py-3 px-3 text-right text-amber-400">Total Billing (MTD)</th>
                     <th className="py-3 px-3 text-right text-emerald-400">Payment Collection (MTD)</th>
                     <th className="py-3 px-3 text-right text-purple-400">Other Payment (MTD)</th>
-                    <th className="py-3 px-3 text-right text-blue-400">Including GST (MTD)</th>
                     <th className="py-3 px-3 text-center">Collection %</th>
                     <th className="py-3 px-3 text-center">Latest Payment Received At</th>
                     <th className="py-3 px-3 text-center">Status</th>
@@ -1272,16 +1284,21 @@ export default function MasterConsolidatedView({
                           ₹{(item.monthOtherBilling || 0).toLocaleString('en-IN')}
                         </td>
 
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
+                          ₹{(item.monthBillingWithGst || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Total Billing MTD = monthBillingWithGst + monthOtherBilling */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
+                          ₹{((item.monthBillingWithGst || 0) + (item.monthOtherBilling || 0)).toLocaleString('en-IN')}
+                        </td>
+
                         <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
                           ₹{(item.monthPaymentCollection || 0).toLocaleString('en-IN')}
                         </td>
 
                         <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
                           ₹{(item.monthOtherPayment || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
-                          ₹{(item.monthBillingWithGst || 0).toLocaleString('en-IN')}
                         </td>
 
                         <td className="py-3.5 px-3 text-center">
@@ -1336,20 +1353,23 @@ export default function MasterConsolidatedView({
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
                       ₹{displayFooterTotal.monthOtherBilling.toLocaleString('en-IN')}
                     </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
+                      ₹{displayFooterTotal.monthBillingWithGst.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
+                      ₹{(displayFooterTotal.monthBillingWithGst + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
+                    </td>
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
                       ₹{displayFooterTotal.monthPaymentCollection.toLocaleString('en-IN')}
                     </td>
                     <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
                       ₹{displayFooterTotal.monthOtherPayment.toLocaleString('en-IN')}
                     </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
-                      ₹{displayFooterTotal.monthBillingWithGst.toLocaleString('en-IN')}
-                    </td>
                     <td className="py-4 px-3 text-center text-xs text-slate-300">
                       {displayFooterTotal.collectionRate}%
                     </td>
                     <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      Audited
+                      Live Timestamped
                     </td>
                     <td className="py-4 px-3 text-center text-xs text-slate-300">
                       {displayFooterTotal.statusText}

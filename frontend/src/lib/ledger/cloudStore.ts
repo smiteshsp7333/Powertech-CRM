@@ -1,5 +1,5 @@
 import { CompanyDailyEntry } from '../../types/ledger';
-import { SEED_ENTRIES } from './store';
+import { SEED_ENTRIES, sanitizeEntry } from './store';
 
 const REDIS_KEY = 'powertech_group_billing_ledger_v2';
 
@@ -47,6 +47,13 @@ export async function getCloudLedgerEntries(): Promise<Record<string, CompanyDai
         const json = await res.json();
         if (json && json.result !== null && json.result !== undefined) {
           const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
+          if (parsed && typeof parsed === 'object') {
+            const sanitizedMap: Record<string, CompanyDailyEntry> = {};
+            Object.keys(parsed).forEach((k) => {
+              sanitizedMap[k] = sanitizeEntry(parsed[k]);
+            });
+            return sanitizedMap;
+          }
           return parsed;
         }
       }
@@ -96,10 +103,11 @@ export async function saveCloudLedgerEntries(
 export async function saveSingleCloudEntry(
   entry: CompanyDailyEntry
 ): Promise<Record<string, CompanyDailyEntry>> {
+  const sanitized = sanitizeEntry(entry);
   const all = await getCloudLedgerEntries();
-  const key = `${entry.companyId}_${entry.date}`;
+  const key = `${sanitized.companyId}_${sanitized.date}`;
   all[key] = {
-    ...entry,
+    ...sanitized,
     id: key,
   };
   await saveCloudLedgerEntries(all);

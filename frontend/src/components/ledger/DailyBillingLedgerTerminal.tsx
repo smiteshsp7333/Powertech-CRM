@@ -3,7 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserSession, CompanyDailyEntry } from '../../types/ledger';
-import { loadAllEntries, saveCompanyDailyEntry, computeConsolidatedSummary, STORAGE_KEY } from '../../lib/ledger/store';
+import {
+  loadAllEntries,
+  saveCompanyDailyEntry,
+  computeConsolidatedSummary,
+  sanitizeEntry,
+  STORAGE_KEY,
+} from '../../lib/ledger/store';
 import ExecutiveHeader from './ExecutiveHeader';
 import MasterConsolidatedView from './MasterConsolidatedView';
 import CompanyEntryView from './CompanyEntryView';
@@ -38,9 +44,13 @@ export default function DailyBillingLedgerTerminal() {
         const data = await res.json();
         if (data) {
           if (data.entries) {
-            setEntries(data.entries);
+            const sanitizedMap: Record<string, CompanyDailyEntry> = {};
+            Object.keys(data.entries).forEach((k) => {
+              sanitizedMap[k] = sanitizeEntry(data.entries[k]);
+            });
+            setEntries(sanitizedMap);
             if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.entries));
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedMap));
             }
           }
           if (data.settings) {

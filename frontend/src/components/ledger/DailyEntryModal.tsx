@@ -51,15 +51,26 @@ export default function DailyEntryModal({
   useEffect(() => {
     if (existingEntry) {
       const bWithGst =
-        existingEntry.billingWithGst ||
-        (existingEntry.billing ? Math.round(existingEntry.billing * 1.18) : existingEntry.todayBilling);
+        existingEntry.billingWithGst !== undefined && existingEntry.billingWithGst !== null
+          ? existingEntry.billingWithGst
+          : existingEntry.billing !== undefined && existingEntry.billing !== null
+          ? Math.round(existingEntry.billing * 1.18)
+          : existingEntry.todayBilling ?? '';
       setBillingWithGst(String(bWithGst));
-      setOtherBilling(String(existingEntry.otherBilling || 0));
+      setOtherBilling(
+        existingEntry.otherBilling !== undefined && existingEntry.otherBilling !== null
+          ? String(existingEntry.otherBilling)
+          : '0'
+      );
       setPaymentCollection(
-        String(existingEntry.paymentCollection ?? Math.round(existingEntry.todayPayment * 0.95))
+        existingEntry.paymentCollection !== undefined && existingEntry.paymentCollection !== null
+          ? String(existingEntry.paymentCollection)
+          : ''
       );
       setOtherPayment(
-        String(existingEntry.otherPayment ?? Math.round(existingEntry.todayPayment * 0.05))
+        existingEntry.otherPayment !== undefined && existingEntry.otherPayment !== null
+          ? String(existingEntry.otherPayment)
+          : '0'
       );
       setPaymentReceivedAt(existingEntry.paymentReceivedAt || getDefaultDateTime(existingEntry.date));
     } else {

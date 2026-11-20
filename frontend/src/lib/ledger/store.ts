@@ -161,11 +161,73 @@ export const SEED_ENTRIES: CompanyDailyEntry[] = [
   },
 ];
 
+export function sanitizeEntry(raw: CompanyDailyEntry): CompanyDailyEntry {
+  const entry = { ...raw };
+
+  const bWithGst =
+    typeof entry.billingWithGst === 'number'
+      ? entry.billingWithGst
+      : typeof entry.billing === 'number'
+      ? Math.round(entry.billing * 1.18)
+      : typeof entry.todayBilling === 'number'
+      ? entry.todayBilling
+      : 0;
+
+  const oBill = typeof entry.otherBilling === 'number' ? entry.otherBilling : 0;
+
+  let pCol =
+    typeof entry.paymentCollection === 'number'
+      ? entry.paymentCollection
+      : typeof entry.todayPayment === 'number'
+      ? entry.todayPayment
+      : 0;
+
+  let oPay = typeof entry.otherPayment === 'number' ? entry.otherPayment : 0;
+
+  // Purge any legacy auto-calculated dummy figures (e.g. 5% / 95% ratio artifacts)
+  // 1. If otherPayment equals exactly 5% of paymentCollection or todayPayment while the total collection equaled paymentCollection:
+  if (
+    oPay > 0 &&
+    pCol > 0 &&
+    (oPay === Math.round(pCol * 0.05) || oPay === Math.round((entry.todayPayment ?? pCol) * 0.05))
+  ) {
+    if (entry.todayPayment === pCol || entry.todayPayment === undefined) {
+      oPay = 0;
+    }
+  }
+
+  // 2. If paymentCollection equals exactly 95% of todayPayment while otherPayment was the only receipt:
+  if (
+    pCol > 0 &&
+    oPay > 0 &&
+    (pCol === Math.round((entry.todayPayment ?? oPay) * 0.95) || pCol === Math.round(oPay * 0.95))
+  ) {
+    if (entry.todayPayment === oPay) {
+      pCol = 0;
+    }
+  }
+
+  const calculatedBase = bWithGst > 0 ? Math.round(bWithGst / 1.18) : 0;
+  const calculatedTotalBilling = bWithGst + oBill;
+  const calculatedTotalPayment = pCol + oPay;
+
+  return {
+    ...entry,
+    billing: calculatedBase,
+    otherBilling: oBill,
+    billingWithGst: bWithGst,
+    paymentCollection: pCol,
+    otherPayment: oPay,
+    todayBilling: calculatedTotalBilling,
+    todayPayment: calculatedTotalPayment,
+  };
+}
+
 export function loadAllEntries(): Record<string, CompanyDailyEntry> {
   if (typeof window === 'undefined') {
     const map: Record<string, CompanyDailyEntry> = {};
     SEED_ENTRIES.forEach((e) => {
-      map[e.id] = e;
+      map[e.id] = sanitizeEntry(e);
     });
     return map;
   }
@@ -174,18 +236,23 @@ export function loadAllEntries(): Record<string, CompanyDailyEntry> {
   if (!raw) {
     const map: Record<string, CompanyDailyEntry> = {};
     SEED_ENTRIES.forEach((e) => {
-      map[e.id] = e;
+      map[e.id] = sanitizeEntry(e);
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
     return map;
   }
 
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const sanitizedMap: Record<string, CompanyDailyEntry> = {};
+    Object.keys(parsed).forEach((k) => {
+      sanitizedMap[k] = sanitizeEntry(parsed[k]);
+    });
+    return sanitizedMap;
   } catch (e) {
     const map: Record<string, CompanyDailyEntry> = {};
     SEED_ENTRIES.forEach((entry) => {
-      map[entry.id] = entry;
+      map[entry.id] = sanitizeEntry(entry);
     });
     return map;
   }
@@ -213,15 +280,16 @@ export async function syncEntryToCloud(entry: CompanyDailyEntry): Promise<void> 
 export function saveCompanyDailyEntry(entry: CompanyDailyEntry): void {
   if (typeof window === 'undefined') return;
 
+  const sanitized = sanitizeEntry(entry);
   const all = loadAllEntries();
-  const key = `${entry.companyId}_${entry.date}`;
+  const key = `${sanitized.companyId}_${sanitized.date}`;
   all[key] = {
-    ...entry,
+    ...sanitized,
     id: key,
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  syncEntryToCloud(entry);
+  syncEntryToCloud(sanitized);
 }
 
 export function deleteCompanyDailyEntry(companyId: string, date: string): void {
@@ -259,54 +327,80 @@ export function computeConsolidatedSummary(
   const summaries: CompanySummary[] = GROUP_COMPANIES.map((company) => {
     const todayKey = `${company.id}_${targetDate}`;
 
-    const companyMonthEntries = allEntriesList.filter(
-      (e) => e.companyId === company.id && e.date.startsWith(targetMonthPrefix)
-    );
+    const companyMonthEntries = allEntriesList
+      .filter((e) => e.companyId === company.id && e.date.startsWith(targetMonthPrefix))
+      .map((e) => sanitizeEntry(e));
 
     // Strict date lookup: today shows only what was entered for this specific date
-    const todayEntry = entriesMap[todayKey];
+    const rawTodayEntry = entriesMap[todayKey];
+    const todayEntry = rawTodayEntry ? sanitizeEntry(rawTodayEntry) : undefined;
 
-    const billing = todayEntry?.billing || 0;
-    const otherBilling = todayEntry?.otherBilling || 0;
+    const billing =
+      typeof todayEntry?.billing === 'number'
+        ? todayEntry.billing
+        : todayEntry?.billingWithGst
+        ? Math.round(todayEntry.billingWithGst / 1.18)
+        : 0;
+    const otherBilling = typeof todayEntry?.otherBilling === 'number' ? todayEntry.otherBilling : 0;
     const billingWithGst =
-      todayEntry?.billingWithGst || (billing > 0 ? Math.round(billing * 1.18) : todayEntry?.todayBilling || 0);
-    const paymentCollection = todayEntry?.paymentCollection || 0;
-    const otherPayment = todayEntry?.otherPayment || 0;
-    const todayBilling = todayEntry?.todayBilling || (billingWithGst + otherBilling);
-    const todayPayment = todayEntry?.todayPayment || (paymentCollection + otherPayment);
+      typeof todayEntry?.billingWithGst === 'number'
+        ? todayEntry.billingWithGst
+        : billing > 0
+        ? Math.round(billing * 1.18)
+        : todayEntry?.todayBilling ?? 0;
+    const paymentCollection =
+      typeof todayEntry?.paymentCollection === 'number' ? todayEntry.paymentCollection : 0;
+    const otherPayment = typeof todayEntry?.otherPayment === 'number' ? todayEntry.otherPayment : 0;
+
+    // Total Billing MUST STRICTLY be Billing with GST + Other Billing
+    const todayBilling = billingWithGst + otherBilling;
+    const todayPayment = paymentCollection + otherPayment;
 
     const monthBilling = companyMonthEntries.reduce(
-      (acc, e) => acc + (e.billing || Math.round(e.todayBilling / 1.18)),
+      (acc, e) =>
+        acc + (typeof e.billing === 'number' ? e.billing : e.billingWithGst ? Math.round(e.billingWithGst / 1.18) : 0),
       0
     );
     const monthOtherBilling = companyMonthEntries.reduce(
-      (acc, e) => acc + (e.otherBilling || 0),
+      (acc, e) => acc + (typeof e.otherBilling === 'number' ? e.otherBilling : 0),
       0
     );
     const monthBillingWithGst = companyMonthEntries.reduce(
-      (acc, e) => acc + (e.billingWithGst || e.todayBilling),
+      (acc, e) =>
+        acc +
+        (typeof e.billingWithGst === 'number'
+          ? e.billingWithGst
+          : e.billing
+          ? Math.round(e.billing * 1.18)
+          : e.todayBilling ?? 0),
       0
     );
     const monthPaymentCollection = companyMonthEntries.reduce(
-      (acc, e) => acc + (e.paymentCollection || Math.round(e.todayPayment * 0.95)),
+      (acc, e) => acc + (typeof e.paymentCollection === 'number' ? e.paymentCollection : 0),
       0
     );
     const monthOtherPayment = companyMonthEntries.reduce(
-      (acc, e) => acc + (e.otherPayment || Math.round(e.todayPayment * 0.05)),
+      (acc, e) => acc + (typeof e.otherPayment === 'number' ? e.otherPayment : 0),
       0
     );
     const monthPayment = companyMonthEntries.reduce(
-      (acc, e) => acc + e.todayPayment,
+      (acc, e) =>
+        acc +
+        (typeof e.todayPayment === 'number'
+          ? e.todayPayment
+          : (e.paymentCollection ?? 0) + (e.otherPayment ?? 0)),
       0
     );
 
+    const monthTotalInvoicedBilling = monthBillingWithGst + monthOtherBilling;
+
     const collectionRate =
-      monthBillingWithGst > 0
-        ? Number(((monthPayment / monthBillingWithGst) * 100).toFixed(1))
+      monthTotalInvoicedBilling > 0
+        ? Number(((monthPayment / monthTotalInvoicedBilling) * 100).toFixed(1))
         : 0;
 
     const daysCount = Math.max(1, new Set(companyMonthEntries.map((e) => e.date)).size);
-    const avgDailyBilling = Math.round(monthBillingWithGst / daysCount);
+    const avgDailyBilling = Math.round(monthTotalInvoicedBilling / daysCount);
 
     return {
       company,
@@ -352,9 +446,11 @@ export function computeConsolidatedSummary(
     collectionRate: 0,
   };
 
+  const grandMonthTotalInvoicedBilling =
+    grandTotal.monthBillingWithGst + grandTotal.monthOtherBilling;
   grandTotal.collectionRate =
-    grandTotal.monthBillingWithGst > 0
-      ? Number(((grandTotal.monthPayment / grandTotal.monthBillingWithGst) * 100).toFixed(1))
+    grandMonthTotalInvoicedBilling > 0
+      ? Number(((grandTotal.monthPayment / grandMonthTotalInvoicedBilling) * 100).toFixed(1))
       : 0;
 
   return { summaries, grandTotal };

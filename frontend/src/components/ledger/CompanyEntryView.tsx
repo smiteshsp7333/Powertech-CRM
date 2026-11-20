@@ -76,17 +76,26 @@ export default function CompanyEntryView({
     const existingToday = list.find((e) => e.date === activeDate);
     if (existingToday) {
       setBillingWithGst(
-        String(
-          existingToday.billingWithGst ||
-            (existingToday.billing ? Math.round(existingToday.billing * 1.18) : existingToday.todayBilling)
-        )
+        existingToday.billingWithGst !== undefined && existingToday.billingWithGst !== null
+          ? String(existingToday.billingWithGst)
+          : existingToday.billing !== undefined && existingToday.billing !== null
+          ? String(Math.round(existingToday.billing * 1.18))
+          : String(existingToday.todayBilling ?? '')
       );
-      setOtherBilling(String(existingToday.otherBilling || '0'));
+      setOtherBilling(
+        existingToday.otherBilling !== undefined && existingToday.otherBilling !== null
+          ? String(existingToday.otherBilling)
+          : '0'
+      );
       setPaymentCollection(
-        String(existingToday.paymentCollection || Math.round(existingToday.todayPayment * 0.95))
+        existingToday.paymentCollection !== undefined && existingToday.paymentCollection !== null
+          ? String(existingToday.paymentCollection)
+          : ''
       );
       setOtherPayment(
-        String(existingToday.otherPayment || Math.round(existingToday.todayPayment * 0.05))
+        existingToday.otherPayment !== undefined && existingToday.otherPayment !== null
+          ? String(existingToday.otherPayment)
+          : '0'
       );
       setPaymentReceivedAt(existingToday.paymentReceivedAt || getDefaultDateTime(activeDate));
     } else {
@@ -514,6 +523,7 @@ export default function CompanyEntryView({
                 <th className="py-3 px-3.5">Date</th>
                 <th className="py-3 px-3 text-right">Billing with GST</th>
                 <th className="py-3 px-3 text-right">Other Billing</th>
+                <th className="py-3 px-3 text-right text-amber-400">Total Billing</th>
                 <th className="py-3 px-3 text-right text-emerald-400">Payment Collection</th>
                 <th className="py-3 px-3 text-right text-purple-400">Other Payment</th>
                 <th className="py-3 px-3 text-center">Payment Received At</th>
@@ -524,7 +534,7 @@ export default function CompanyEntryView({
             <tbody className="divide-y divide-slate-800/60">
               {last7DaysHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500 italic">
+                  <td colSpan={9} className="py-8 text-center text-slate-500 italic">
                     No entries recorded yet for the last 7 days. Submit today&apos;s figures above.
                   </td>
                 </tr>
@@ -533,11 +543,20 @@ export default function CompanyEntryView({
                   const canEditThisRow =
                     row.date === todayDateStr || activeUnlockedDates.includes(row.date);
                   const rowBWithGst =
-                    row.billingWithGst ||
-                    (row.billing ? Math.round(row.billing * 1.18) : row.todayBilling);
-                  const rowOBill = row.otherBilling || 0;
-                  const rowPCol = row.paymentCollection || Math.round(row.todayPayment * 0.95);
-                  const rowOPay = row.otherPayment || Math.round(row.todayPayment * 0.05);
+                    typeof row.billingWithGst === 'number'
+                      ? row.billingWithGst
+                      : row.billing
+                      ? Math.round(row.billing * 1.18)
+                      : row.todayBilling ?? 0;
+                  const rowOBill = typeof row.otherBilling === 'number' ? row.otherBilling : 0;
+                  const rowTotalBilling = rowBWithGst + rowOBill;
+                  const rowPCol =
+                    typeof row.paymentCollection === 'number'
+                      ? row.paymentCollection
+                      : typeof row.todayPayment === 'number'
+                      ? row.todayPayment
+                      : 0;
+                  const rowOPay = typeof row.otherPayment === 'number' ? row.otherPayment : 0;
 
                   return (
                     <tr key={row.id} className="hover:bg-slate-800/40 transition-colors">
@@ -551,6 +570,10 @@ export default function CompanyEntryView({
 
                       <td className="py-3.5 px-3 text-right font-bold font-sans text-slate-300">
                         ₹{rowOBill.toLocaleString('en-IN')}
+                      </td>
+
+                      <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
+                        ₹{rowTotalBilling.toLocaleString('en-IN')}
                       </td>
 
                       <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
