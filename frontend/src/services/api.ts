@@ -34,9 +34,42 @@ export class ApiError extends Error {
   }
 }
 
+export const STORE_KEYS = {
+  ENQUIRIES: 'powertech_crm_prod_v2_enquiries',
+  QUOTATIONS: 'powertech_crm_prod_v2_quotations',
+  ORDERS: 'powertech_crm_prod_v2_orders',
+  DISPATCHES: 'powertech_crm_prod_v2_dispatches',
+  INVOICES: 'powertech_crm_prod_v2_invoices',
+  PURCHASES: 'powertech_crm_prod_v2_purchases',
+  DAILY_SUMMARY: 'powertech_crm_prod_v2_daily_summary',
+  CUSTOMERS: 'powertech_crm_prod_v2_customers',
+  SUPPLIERS: 'powertech_crm_prod_v2_suppliers',
+};
+
+let hasPurgedLegacy = false;
+function purgeLegacyDemoStores() {
+  if (typeof window === 'undefined' || hasPurgedLegacy) return;
+  try {
+    const versionKey = 'powertech_crm_prod_v2_initialized';
+    if (!localStorage.getItem(versionKey)) {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('powertech_demo_')) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem(versionKey, 'true');
+    }
+    hasPurgedLegacy = true;
+  } catch (e) {}
+}
+
 // In-memory / localStorage reactive store helper for Vercel preview
 function getStore<T>(key: string, initial: T): T {
   if (typeof window === 'undefined') return initial;
+  purgeLegacyDemoStores();
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
@@ -113,22 +146,109 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     } as unknown as T;
   }
 
-  // Dashboard Metrics
+  // Dashboard Metrics - dynamically computed from real active records
   if (cleanEndpoint === '/reports/dashboard') {
+    const enquiries = getStore<any[]>(STORE_KEYS.ENQUIRIES, DEMO_ENQUIRIES);
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
+    const dispatches = getStore<any[]>(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES);
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
+    const purchases = getStore<any[]>(STORE_KEYS.PURCHASES, DEMO_PURCHASES);
+
+    const confirmedOrders = orders.filter((o) => o.status !== 'CANCELLED').length;
+    const pendingDispatches = orders.filter((o) =>
+      ['CONFIRMED', 'IN_PROGRESS', 'READY_FOR_DISPATCH', 'PARTIALLY_DISPATCHED'].includes(o.status)
+    ).length;
+    const pendingDeliveries = dispatches.filter((d) => d.deliveryStatus !== 'DELIVERED').length;
+    const pendingInvoices = invoices.filter((i) => i.paymentStatus !== 'PAID');
+    const pendingPaymentsAmount = pendingInvoices.reduce(
+      (sum, i) => sum + (Number(i.balanceAmount ?? (Number(i.totalAmount || 0) - Number(i.paidAmount || 0))) || 0),
+      0
+    );
+    const totalBilling = invoices.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+    const totalCollections = invoices.reduce((sum, i) => sum + (Number(i.paidAmount) || 0), 0);
+    const totalPurchases = purchases.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyTrendMap: Record<string, { billing: number; collection: number }> = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mKey = `${monthNames[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`;
+      monthlyTrendMap[mKey] = { billing: 0, collection: 0 };
+    }
+
+    invoices.forEach((inv) => {
+      const d = inv.billingDate ? new Date(inv.billingDate) : new Date();
+      const mKey = `${monthNames[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`;
+      if (monthlyTrendMap[mKey]) {
+        monthlyTrendMap[mKey].billing += Number(inv.totalAmount) || 0;
+      }
+      (inv.payments || []).forEach((p: any) => {
+        const pd = p.paymentDate ? new Date(p.paymentDate) : d;
+        const pmKey = `${monthNames[pd.getMonth()]} ${pd.getFullYear().toString().slice(-2)}`;
+        if (monthlyTrendMap[pmKey]) {
+          monthlyTrendMap[pmKey].collection += Number(p.amount) || 0;
+        }
+      });
+    });
+
+    const monthlyTrend = Object.entries(monthlyTrendMap).map(([month, vals]) => ({
+      month,
+      billing: vals.billing,
+      collection: vals.collection,
+    }));
+
+    const funnelData = [
+      { stage: 'Total Enquiries', count: enquiries.length },
+      { stage: 'Quotations Created', count: quotations.length },
+      { stage: 'Confirmed Orders', count: confirmedOrders },
+      { stage: 'Invoiced Orders', count: invoices.length },
+    ];
+
     return {
       success: true,
-      data: DEMO_DASHBOARD,
+      data: {
+        cards: {
+          totalEnquiries: enquiries.length,
+          totalQuotations: quotations.length,
+          confirmedOrders,
+          pendingDispatches,
+          pendingDeliveries,
+          pendingPayments: pendingInvoices.length,
+          pendingPaymentsAmount,
+          pendingPaymentsCount: pendingInvoices.length,
+          totalBilling,
+          totalCollections,
+          totalPurchases,
+        },
+        monthlyTrend,
+        funnelData,
+      },
     } as unknown as T;
   }
 
   // Reports data
   if (cleanEndpoint === '/reports/data') {
     if (options.headers && (options.headers as any)['format'] === 'excel') {
-      return new Blob(['Demo Report Spreadsheet Content'], {
+      return new Blob(['Report Spreadsheet Content'], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }) as unknown as T;
     }
-    const enquiries = getStore('powertech_demo_enquiries', DEMO_ENQUIRIES);
+    const reportType = queryParams.get('reportType') || 'ENQUIRIES';
+    if (reportType === 'BILLING' || reportType === 'INVOICES') {
+      return { success: true, data: getStore(STORE_KEYS.INVOICES, DEMO_INVOICES) } as unknown as T;
+    }
+    if (reportType === 'ORDERS') {
+      return { success: true, data: getStore(STORE_KEYS.ORDERS, DEMO_ORDERS) } as unknown as T;
+    }
+    if (reportType === 'DISPATCHES') {
+      return { success: true, data: getStore(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES) } as unknown as T;
+    }
+    if (reportType === 'PURCHASES') {
+      return { success: true, data: getStore(STORE_KEYS.PURCHASES, DEMO_PURCHASES) } as unknown as T;
+    }
+    const enquiries = getStore(STORE_KEYS.ENQUIRIES, DEMO_ENQUIRIES);
     return {
       success: true,
       data: enquiries,
@@ -137,7 +257,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   // 2. Enquiries (Creation & Filtering)
   if (cleanEndpoint === '/enquiries') {
-    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
+    const enquiries = getStore<any[]>(STORE_KEYS.ENQUIRIES, DEMO_ENQUIRIES);
 
     if (method === 'POST') {
       let body: any = {};
@@ -145,14 +265,37 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         body = JSON.parse(options.body as string);
       } catch (e) {}
 
+      const custName = body.customerName || 'Customer';
+      const compName = body.companyName || '';
+
+      // Auto-register customer if new
+      if (custName && custName !== 'Customer') {
+        const customers = getStore<any[]>(STORE_KEYS.CUSTOMERS, DEMO_CUSTOMERS);
+        if (!customers.some((c) => c.name?.toLowerCase() === custName.toLowerCase())) {
+          setStore(STORE_KEYS.CUSTOMERS, [
+            ...customers,
+            {
+              id: `c-${Date.now()}`,
+              name: custName,
+              companyName: compName,
+              phone: body.phone || '',
+              email: body.email || '',
+              address: body.address || '',
+              customerType: body.customerType || 'COMPANY',
+              gstin: body.gstin || '',
+            },
+          ]);
+        }
+      }
+
       const newEnq = {
         id: `enq-${Date.now()}`,
         enquiryNumber: `ENQ-2026-0000${enquiries.length + 1}`,
-        enquiryDate: new Date().toISOString(),
-        customerName: body.customerName || 'Demo Customer',
-        companyName: body.companyName || '',
-        phone: body.phone || '+91 98000 00000',
-        address: body.address || 'Industrial Area',
+        enquiryDate: body.enquiryDate || new Date().toISOString(),
+        customerName: custName,
+        companyName: compName,
+        phone: body.phone || '',
+        address: body.address || '',
         customerType: body.customerType || 'COMPANY',
         requirements: body.requirements || '',
         remarks: body.remarks || '',
@@ -166,13 +309,13 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
             action: 'CREATED',
             description: 'Enquiry recorded in system.',
             createdAt: new Date().toISOString(),
-            user: { name: 'Current User' },
+            user: { name: 'Active User' },
           },
         ],
       };
 
       const updated = [newEnq, ...enquiries];
-      setStore('powertech_demo_enquiries', updated);
+      setStore(STORE_KEYS.ENQUIRIES, updated);
       return { success: true, data: newEnq } as unknown as T;
     }
 
@@ -208,22 +351,22 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   if (cleanEndpoint.startsWith('/enquiries/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/enquiries/', '');
-    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
+    const enquiries = getStore<any[]>(STORE_KEYS.ENQUIRIES, DEMO_ENQUIRIES);
     const updated = enquiries.filter((e) => e.id !== id && e.enquiryNumber !== id);
-    setStore('powertech_demo_enquiries', updated);
+    setStore(STORE_KEYS.ENQUIRIES, updated);
     return { success: true, message: 'Enquiry deleted successfully.' } as unknown as T;
   }
 
   if (cleanEndpoint.startsWith('/enquiries/') && method === 'GET') {
     const id = cleanEndpoint.replace('/enquiries/', '');
-    const enquiries = getStore<any[]>('powertech_demo_enquiries', DEMO_ENQUIRIES);
-    const found = enquiries.find((e) => e.id === id || e.enquiryNumber === id) || enquiries[0];
-    return { success: true, data: found } as unknown as T;
+    const enquiries = getStore<any[]>(STORE_KEYS.ENQUIRIES, DEMO_ENQUIRIES);
+    const found = enquiries.find((e) => e.id === id || e.enquiryNumber === id);
+    return { success: true, data: found || null } as unknown as T;
   }
 
   // 3. Quotations (Creation & Filtering)
   if (cleanEndpoint === '/quotations') {
-    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
 
     if (method === 'POST') {
       let body: any = {};
@@ -231,8 +374,30 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         body = JSON.parse(options.body as string);
       } catch (e) {}
 
-      const customers = getStore<any[]>('powertech_demo_customers', DEMO_CUSTOMERS);
-      const matchedCust = customers.find((c) => c.id === body.customerId);
+      const customers = getStore<any[]>(STORE_KEYS.CUSTOMERS, DEMO_CUSTOMERS);
+      let matchedCust = customers.find((c) => c.id === body.customerId);
+      if (!matchedCust && body.customerName) {
+        matchedCust = customers.find((c) => c.name?.toLowerCase() === body.customerName.toLowerCase());
+      }
+      const custName = matchedCust ? matchedCust.name : (body.customerName || 'Customer');
+      const compName = matchedCust ? matchedCust.companyName : (body.companyName || '');
+
+      // Auto-register customer if not present
+      if (custName && custName !== 'Customer' && !customers.some((c) => c.name?.toLowerCase() === custName.toLowerCase())) {
+        setStore(STORE_KEYS.CUSTOMERS, [
+          ...customers,
+          {
+            id: `c-${Date.now()}`,
+            name: custName,
+            companyName: compName,
+            phone: body.phone || '',
+            email: body.email || '',
+            address: body.address || '',
+            customerType: body.customerType || 'COMPANY',
+            gstin: body.gstin || '',
+          },
+        ]);
+      }
 
       const items = (body.items || []).map((it: any, idx: number) => ({
         id: `qi-new-${Date.now()}-${idx}`,
@@ -261,8 +426,10 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         quotationNumber: `QTN-2026-0000${quotations.length + 1}`,
         revisionNumber: 0,
         quotationDate: new Date().toISOString(),
-        customerName: matchedCust ? matchedCust.name : (body.customerName || 'Tata Power'),
-        companyName: matchedCust ? matchedCust.companyName : (body.companyName || 'Tata Power Industrial Solutions'),
+        customerName: custName,
+        companyName: compName,
+        phone: matchedCust?.phone || body.phone || '',
+        address: matchedCust?.address || body.address || '',
         totalAmount,
         subtotal,
         discountType: body.discountType || 'PERCENT',
@@ -276,7 +443,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       };
 
       const updated = [newQtn, ...quotations];
-      setStore('powertech_demo_quotations', updated);
+      setStore(STORE_KEYS.QUOTATIONS, updated);
       return { success: true, data: newQtn } as unknown as T;
     }
 
@@ -305,57 +472,65 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   if (cleanEndpoint.includes('/convert-to-order')) {
     const qtnId = cleanEndpoint.split('/')[2];
-    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
     const qtn = quotations.find((q) => q.id === qtnId);
     if (qtn) {
       qtn.status = 'CONVERTED_TO_ORDER';
-      setStore('powertech_demo_quotations', quotations);
+      setStore(STORE_KEYS.QUOTATIONS, quotations);
     }
 
-    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    let body: any = {};
+    try {
+      body = JSON.parse(options.body as string);
+    } catch (e) {}
+
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const newOrd = {
       id: `ord-${Date.now()}`,
       orderNumber: `ORD-2026-0000${orders.length + 1}`,
       orderDate: new Date().toISOString(),
-      customerName: qtn?.customerName || 'Tata Power',
-      companyName: qtn?.companyName || 'Tata Power Industrial Solutions',
-      phone: '+91 98200 11223',
-      address: 'Plot 45, MIDC Industrial Area, Pune',
+      customerName: qtn?.customerName || body.customerName || 'Customer',
+      companyName: qtn?.companyName || body.companyName || '',
+      phone: qtn?.phone || body.phone || '',
+      address: qtn?.address || body.address || '',
       customer: {
-        id: 'c-1',
-        name: qtn?.customerName || 'Tata Power',
-        companyName: qtn?.companyName || 'Tata Power Industrial Solutions',
-        phone: '+91 98200 11223',
-        address: 'Plot 45, MIDC Industrial Area, Pune',
+        id: qtn?.customer?.id || `c-${Date.now()}`,
+        name: qtn?.customerName || body.customerName || 'Customer',
+        companyName: qtn?.companyName || body.companyName || '',
+        phone: qtn?.phone || body.phone || '',
+        address: qtn?.address || body.address || '',
       },
-      totalAmount: qtn?.totalAmount || 500000,
-      paymentTerms: '50% advance received, 50% on dispatch',
-      dueDays: 30,
+      totalAmount: qtn?.totalAmount || 0,
+      paymentTerms: body.agreedPaymentTerms || '50% advance, 50% on dispatch',
+      dueDays: Number(body.dueDays) || 30,
       status: 'CONFIRMED',
       items: (qtn?.items || []).map((it: any, i: number) => ({
         id: `oi-${Date.now()}-${i}`,
-        description: it.description || it.itemDescription,
-        itemDescription: it.itemDescription || it.description,
-        quantity: it.quantity,
+        description: it.description || it.itemDescription || 'Industrial Equipment',
+        itemDescription: it.itemDescription || it.description || 'Industrial Equipment',
+        quantity: it.quantity || 1,
         unit: it.unit || 'Nos',
         dispatchedQty: 0,
-        rate: it.rate,
-        amount: it.amount,
+        rate: it.rate || 0,
+        amount: it.amount || 0,
       })),
       dispatches: [],
       invoices: [],
       completionPhotos: [],
     };
 
-    setStore('powertech_demo_orders', [newOrd, ...orders]);
+    setStore(STORE_KEYS.ORDERS, [newOrd, ...orders]);
     return { success: true, data: newOrd } as unknown as T;
   }
 
   // Commercial Quotation PDF Generation
   if (cleanEndpoint.startsWith('/quotations/') && cleanEndpoint.endsWith('/pdf')) {
     const id = cleanEndpoint.replace('/quotations/', '').replace('/pdf', '');
-    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
-    const quotation = quotations.find((q) => q.id === id || q.quotationNumber === id || q.fullNumber === id) || quotations[0];
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
+    const quotation = quotations.find((q) => q.id === id || q.quotationNumber === id || q.fullNumber === id);
+    if (!quotation) {
+      return new Blob(['Quotation Not Found'], { type: 'application/pdf' }) as unknown as T;
+    }
     const pdfBlob = generateQuotationPdf(quotation);
     return pdfBlob as unknown as T;
   }
@@ -363,33 +538,36 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
   // Tax Invoice PDF Generation
   if (cleanEndpoint.startsWith('/billing/') && cleanEndpoint.endsWith('/pdf')) {
     const id = cleanEndpoint.replace('/billing/', '').replace('/pdf', '');
-    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
-    const invoice = invoices.find((inv) => inv.id === id || inv.invoiceNumber === id) || invoices[0];
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
+    const invoice = invoices.find((inv) => inv.id === id || inv.invoiceNumber === id);
+    if (!invoice) {
+      return new Blob(['Invoice Not Found'], { type: 'application/pdf' }) as unknown as T;
+    }
     const pdfBlob = generateInvoicePdf(invoice);
     return pdfBlob as unknown as T;
   }
 
   if (cleanEndpoint.startsWith('/quotations/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/quotations/', '');
-    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
     const updated = quotations.filter((q) => q.id !== id && q.quotationNumber !== id && q.fullNumber !== id);
-    setStore('powertech_demo_quotations', updated);
+    setStore(STORE_KEYS.QUOTATIONS, updated);
     return { success: true, message: 'Quotation deleted successfully.' } as unknown as T;
   }
 
   if (cleanEndpoint.startsWith('/quotations/') && method === 'GET') {
     const id = cleanEndpoint.replace('/quotations/', '');
-    const quotations = getStore<any[]>('powertech_demo_quotations', DEMO_QUOTATIONS);
-    const found = quotations.find((q) => q.id === id) || quotations[0];
-    return { success: true, data: found } as unknown as T;
+    const quotations = getStore<any[]>(STORE_KEYS.QUOTATIONS, DEMO_QUOTATIONS);
+    const found = quotations.find((q) => q.id === id || q.quotationNumber === id || q.fullNumber === id);
+    return { success: true, data: found || null } as unknown as T;
   }
 
   // 4. Orders (Status Updating, Deleting & Filtering)
   if (cleanEndpoint.startsWith('/orders/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/orders/', '');
-    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const updated = orders.filter((o) => o.id !== id && o.orderNumber !== id);
-    setStore('powertech_demo_orders', updated);
+    setStore(STORE_KEYS.ORDERS, updated);
     return { success: true, message: 'Order deleted successfully.' } as unknown as T;
   }
   if (cleanEndpoint.includes('/status') && cleanEndpoint.startsWith('/orders/')) {
@@ -399,20 +577,20 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const order = orders.find((o) => o.id === orderId);
     if (order) {
       order.status = body.status;
       if (body.cancellationReason) {
         order.cancellationReason = body.cancellationReason;
       }
-      setStore('powertech_demo_orders', orders);
+      setStore(STORE_KEYS.ORDERS, orders);
       return { success: true, data: order } as unknown as T;
     }
   }
 
   if (cleanEndpoint === '/orders') {
-    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const search = (queryParams.get('search') || '').toLowerCase().trim();
     const status = queryParams.get('status') || '';
 
@@ -438,9 +616,9 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   if (cleanEndpoint.startsWith('/orders/') && method === 'GET') {
     const id = cleanEndpoint.replace('/orders/', '');
-    const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
-    const found = orders.find((o) => o.id === id) || orders[0];
-    return { success: true, data: found } as unknown as T;
+    const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
+    const found = orders.find((o) => o.id === id || o.orderNumber === id);
+    return { success: true, data: found || null } as unknown as T;
   }
 
   // 5. Dispatches (Creation, Delivery Status & Filtering)
@@ -451,19 +629,19 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+    const dispatches = getStore<any[]>(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES);
     const dsp = dispatches.find((d) => d.id === dspId);
     if (dsp) {
       dsp.deliveryStatus = body.deliveryStatus || 'DELIVERED';
       dsp.actualDeliveryDate = body.actualDeliveryDate || new Date().toISOString();
       dsp.remarks = body.remarks || dsp.remarks;
-      setStore('powertech_demo_dispatches', dispatches);
+      setStore(STORE_KEYS.DISPATCHES, dispatches);
       return { success: true, data: dsp } as unknown as T;
     }
   }
 
   if (cleanEndpoint === '/dispatches') {
-    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+    const dispatches = getStore<any[]>(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES);
 
     if (method === 'POST') {
       let body: any = {};
@@ -471,7 +649,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         body = JSON.parse(options.body as string);
       } catch (e) {}
 
-      const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+      const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
       const order = orders.find((o) => o.id === body.orderId);
 
       // Update dispatched quantities on order items
@@ -486,39 +664,40 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
           (oi: any) => (Number(oi.dispatchedQty) || 0) >= (Number(oi.quantity) || 1)
         );
         order.status = allFullyDispatched ? 'DISPATCHED' : 'PARTIALLY_DISPATCHED';
-        setStore('powertech_demo_orders', orders);
+        setStore(STORE_KEYS.ORDERS, orders);
       }
 
+      const transportCourier = body.transportCourier || body.courierName || 'Logistics Provider';
       const newDispatch = {
         id: `dsp-${Date.now()}`,
         dispatchNumber: `DSP-2026-0000${dispatches.length + 1}`,
         dispatchDate: new Date().toISOString(),
-        transportCourier: body.transportCourier || 'VRL Logistics',
-        courierName: body.transportCourier || 'VRL Logistics',
+        transportCourier,
+        courierName: transportCourier,
         trackingNumber: body.trackingNumber || `TRK-${Date.now()}`,
-        deliveryAddress: body.deliveryAddress || order?.address || 'Industrial Plant',
+        deliveryAddress: body.deliveryAddress || order?.address || '',
         expectedDeliveryDate: body.expectedDeliveryDate || new Date().toISOString(),
         actualDeliveryDate: null,
         deliveryStatus: 'DISPATCHED',
-        remarks: body.remarks || 'Dispatched from factory',
+        remarks: body.remarks || 'Consignment dispatched',
         order: {
-          id: order?.id || 'ord-1',
-          orderNumber: order?.orderNumber || 'ORD-2026-00001',
-          customerName: order?.customerName || 'Tata Power',
-          companyName: order?.companyName || 'Tata Power Industrial Solutions',
+          id: order?.id || body.orderId || '',
+          orderNumber: order?.orderNumber || 'ORD',
+          customerName: order?.customerName || body.customerName || 'Customer',
+          companyName: order?.companyName || body.companyName || '',
           customer: {
-            id: 'c-1',
-            name: order?.customerName || 'Tata Power',
-            companyName: order?.companyName || 'Tata Power Industrial Solutions',
-            phone: order?.phone || '+91 98200 11223',
-            address: order?.address || 'Pune Industrial Area',
+            id: order?.customer?.id || `c-${Date.now()}`,
+            name: order?.customerName || body.customerName || 'Customer',
+            companyName: order?.companyName || body.companyName || '',
+            phone: order?.phone || '',
+            address: order?.address || '',
           },
         },
         items: body.items || [],
       };
 
       const updated = [newDispatch, ...dispatches];
-      setStore('powertech_demo_dispatches', updated);
+      setStore(STORE_KEYS.DISPATCHES, updated);
       return { success: true, data: newDispatch } as unknown as T;
     }
 
@@ -550,18 +729,18 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   if (cleanEndpoint.startsWith('/dispatches/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/dispatches/', '');
-    const dispatches = getStore<any[]>('powertech_demo_dispatches', DEMO_DISPATCHES);
+    const dispatches = getStore<any[]>(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES);
     const updated = dispatches.filter((d) => d.id !== id && d.dispatchNumber !== id);
-    setStore('powertech_demo_dispatches', updated);
+    setStore(STORE_KEYS.DISPATCHES, updated);
     return { success: true, message: 'Dispatch deleted successfully.' } as unknown as T;
   }
 
   // 6. Billing & Invoices
   if (cleanEndpoint.startsWith('/billing/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/billing/', '');
-    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
     const updated = invoices.filter((inv) => inv.id !== id && inv.invoiceNumber !== id);
-    setStore('powertech_demo_invoices', updated);
+    setStore(STORE_KEYS.INVOICES, updated);
     return { success: true, message: 'Invoice deleted successfully.' } as unknown as T;
   }
 
@@ -572,7 +751,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
     const invoice = invoices.find((inv) => inv.id === invId);
     if (invoice) {
       const paymentAmount = Number(body.amountReceived) || 0;
@@ -590,13 +769,13 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         notes: body.remarks || '',
       });
 
-      setStore('powertech_demo_invoices', invoices);
+      setStore(STORE_KEYS.INVOICES, invoices);
       return { success: true, data: invoice } as unknown as T;
     }
   }
 
   if (cleanEndpoint === '/billing') {
-    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
 
     if (method === 'POST') {
       let body: any = {};
@@ -604,16 +783,16 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         body = JSON.parse(options.body as string);
       } catch (e) {}
 
-      const orders = getStore<any[]>('powertech_demo_orders', DEMO_ORDERS);
+      const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
       const order = orders.find((o) => o.id === body.orderId);
 
       const items = (body.items || order?.items || []).map((it: any, i: number) => ({
         id: `ii-new-${Date.now()}-${i}`,
-        description: it.itemDescription || it.description || 'Industrial Equipment',
+        description: it.itemDescription || it.description || 'Industrial Goods',
         hsnCode: it.hsnSacCode || '8504',
         quantity: Number(it.quantity) || 1,
-        rate: Number(it.rate) || 100000,
-        amount: (Number(it.quantity) || 1) * (Number(it.rate) || 100000),
+        rate: Number(it.rate) || 0,
+        amount: (Number(it.quantity) || 1) * (Number(it.rate) || 0),
       }));
 
       const subtotal = items.reduce((acc: number, curr: any) => acc + curr.amount, 0);
@@ -628,9 +807,9 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
           : `INV-2026-27-0000${invoices.length + 1}`,
         billingDate: body.billingDate || new Date().toISOString(),
         dueDate: body.dueDate || new Date(Date.now() + 30 * 86400000).toISOString(),
-        customerName: order?.customerName || 'Tata Power',
-        companyName: order?.companyName || 'Tata Power Industrial Solutions',
-        customerGstin: '27AABCT3518Q1Z8',
+        customerName: order?.customerName || body.customerName || 'Customer',
+        companyName: order?.companyName || body.companyName || '',
+        customerGstin: body.customerGstin || (order as any)?.customerGstin || '',
         subtotal,
         cgstAmount: body.isInterState ? 0 : Math.round(totalTax / 2),
         sgstAmount: body.isInterState ? 0 : Math.round(totalTax / 2),
@@ -641,17 +820,17 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         balanceAmount: totalAmount,
         paymentStatus: 'UNPAID',
         mode: body.invoiceType || 'SYSTEM_GENERATED',
-        order: { id: order?.id || 'ord-1', orderNumber: order?.orderNumber || 'ORD-2026-00001' },
+        order: { id: order?.id || body.orderId || '', orderNumber: order?.orderNumber || '' },
         items,
         payments: [],
       };
 
       const updated = [newInv, ...invoices];
-      setStore('powertech_demo_invoices', updated);
+      setStore(STORE_KEYS.INVOICES, updated);
 
       if (order) {
         order.status = 'INVOICED';
-        setStore('powertech_demo_orders', orders);
+        setStore(STORE_KEYS.ORDERS, orders);
       }
 
       return { success: true, data: newInv } as unknown as T;
@@ -683,7 +862,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
   }
 
   if (cleanEndpoint === '/billing/pending-payments') {
-    const invoices = getStore<any[]>('powertech_demo_invoices', DEMO_INVOICES);
+    const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
     const pending = invoices.filter((i) => i.paymentStatus !== 'PAID');
     return {
       success: true,
@@ -693,7 +872,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   // 7. Purchases
   if (cleanEndpoint === '/purchases') {
-    const purchases = getStore<any[]>('powertech_demo_purchases', DEMO_PURCHASES);
+    const purchases = getStore<any[]>(STORE_KEYS.PURCHASES, DEMO_PURCHASES);
 
     if (method === 'POST') {
       let body: any = {};
@@ -701,8 +880,27 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         body = JSON.parse(options.body as string);
       } catch (e) {}
 
-      const suppliers = getStore<any[]>('powertech_demo_suppliers', DEMO_SUPPLIERS);
-      const supplier = suppliers.find((s) => s.id === body.supplierId);
+      const suppliers = getStore<any[]>(STORE_KEYS.SUPPLIERS, DEMO_SUPPLIERS);
+      let supplier = suppliers.find((s) => s.id === body.supplierId);
+      if (!supplier && body.supplierName) {
+        supplier = suppliers.find((s) => s.name?.toLowerCase() === body.supplierName.toLowerCase());
+      }
+      const suppName = supplier?.name || body.supplierName || 'Supplier';
+
+      // Auto-register supplier if new
+      if (suppName !== 'Supplier' && !suppliers.some((s) => s.name?.toLowerCase() === suppName.toLowerCase())) {
+        setStore(STORE_KEYS.SUPPLIERS, [
+          ...suppliers,
+          {
+            id: `s-${Date.now()}`,
+            name: suppName,
+            contactPerson: body.contactPerson || '',
+            phone: body.phone || '',
+            email: body.email || '',
+            gstin: body.gstin || '',
+          },
+        ]);
+      }
 
       const subtotal = Number(body.subtotal) || 0;
       const taxRate = Number(body.taxRate) || 18;
@@ -713,17 +911,17 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         id: `pur-${Date.now()}`,
         purchaseNumber: `PUR-2026-0000${purchases.length + 1}`,
         purchaseDate: body.purchaseDate || new Date().toISOString(),
-        supplierName: supplier?.name || 'Hindalco Copper & Metal Industries',
+        supplierName: suppName,
         supplierBillNo: body.supplierBillNo || `SB-${Date.now()}`,
         category: body.category || 'RAW_MATERIAL',
-        description: body.description || 'Industrial raw material procurement',
+        description: body.description || 'Raw materials procurement',
         subtotal,
         taxAmount,
         totalAmount,
       };
 
       const updated = [newPurchase, ...purchases];
-      setStore('powertech_demo_purchases', updated);
+      setStore(STORE_KEYS.PURCHASES, updated);
       return { success: true, data: newPurchase } as unknown as T;
     }
 
@@ -748,9 +946,9 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   if (cleanEndpoint.startsWith('/purchases/') && method === 'DELETE') {
     const id = cleanEndpoint.replace('/purchases/', '');
-    const purchases = getStore<any[]>('powertech_demo_purchases', DEMO_PURCHASES);
+    const purchases = getStore<any[]>(STORE_KEYS.PURCHASES, DEMO_PURCHASES);
     const updated = purchases.filter((p) => p.id !== id);
-    setStore('powertech_demo_purchases', updated);
+    setStore(STORE_KEYS.PURCHASES, updated);
     return { success: true, message: 'Purchase bill deleted successfully.' } as unknown as T;
   }
 
@@ -761,7 +959,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
     const targetDate = body.date || new Date().toISOString().slice(0, 10);
 
@@ -800,11 +998,15 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
         billing: totalBilling,
         collection: totalCollection,
         purchase: totalPurchase,
+        totalBilling,
+        totalCollections: totalCollection,
+        totalPurchases: totalPurchase,
+        adjustments: 0,
         netCashFlow: totalNetCash,
       },
     };
 
-    setStore('powertech_demo_daily_summary', updatedSummary);
+    setStore(STORE_KEYS.DAILY_SUMMARY, updatedSummary);
     return { success: true, data: updatedSummary } as unknown as T;
   }
 
@@ -814,7 +1016,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
     const targetDate = body.date || new Date().toISOString().slice(0, 10);
 
@@ -844,7 +1046,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     });
     row.netCashFlow = (Number(row.collectionAmount) || 0) - (Number(row.purchaseAmount) || 0) + row.adjustmentAmount;
 
-    setStore('powertech_demo_daily_summary', { ...summary, dailyRecords: records });
+    setStore(STORE_KEYS.DAILY_SUMMARY, { ...summary, dailyRecords: records });
     return { success: true, data: row } as unknown as T;
   }
 
@@ -854,18 +1056,18 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       body = JSON.parse(options.body as string);
     } catch (e) {}
 
-    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
     const row = records.find((r) => r.date === body.date);
     if (row) {
       row.isLocked = Boolean(body.isLocked);
-      setStore('powertech_demo_daily_summary', { ...summary, dailyRecords: records });
+      setStore(STORE_KEYS.DAILY_SUMMARY, { ...summary, dailyRecords: records });
     }
     return { success: true } as unknown as T;
   }
 
   if (cleanEndpoint === '/daily-summary') {
-    const summary = getStore<any>('powertech_demo_daily_summary', DEMO_DAILY_SUMMARY);
+    const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const startDate = queryParams.get('startDate') || '';
     const endDate = queryParams.get('endDate') || '';
 
@@ -911,7 +1113,26 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
 
   // Customers & Suppliers
   if (cleanEndpoint === '/customers') {
-    const customers = getStore('powertech_demo_customers', DEMO_CUSTOMERS);
+    const customers = getStore<any[]>(STORE_KEYS.CUSTOMERS, DEMO_CUSTOMERS);
+    if (method === 'POST') {
+      let body: any = {};
+      try {
+        body = JSON.parse(options.body as string);
+      } catch (e) {}
+      const newCust = {
+        id: `c-${Date.now()}`,
+        name: body.name || 'Customer',
+        companyName: body.companyName || '',
+        phone: body.phone || '',
+        email: body.email || '',
+        address: body.address || '',
+        customerType: body.customerType || 'COMPANY',
+        gstin: body.gstin || '',
+      };
+      const updated = [newCust, ...customers];
+      setStore(STORE_KEYS.CUSTOMERS, updated);
+      return { success: true, data: newCust } as unknown as T;
+    }
     return {
       success: true,
       data: customers,
@@ -919,7 +1140,24 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
   }
 
   if (cleanEndpoint === '/suppliers') {
-    const suppliers = getStore('powertech_demo_suppliers', DEMO_SUPPLIERS);
+    const suppliers = getStore<any[]>(STORE_KEYS.SUPPLIERS, DEMO_SUPPLIERS);
+    if (method === 'POST') {
+      let body: any = {};
+      try {
+        body = JSON.parse(options.body as string);
+      } catch (e) {}
+      const newSupp = {
+        id: `s-${Date.now()}`,
+        name: body.name || 'Supplier',
+        contactPerson: body.contactPerson || '',
+        phone: body.phone || '',
+        email: body.email || '',
+        gstin: body.gstin || '',
+      };
+      const updated = [newSupp, ...suppliers];
+      setStore(STORE_KEYS.SUPPLIERS, updated);
+      return { success: true, data: newSupp } as unknown as T;
+    }
     return {
       success: true,
       data: suppliers,

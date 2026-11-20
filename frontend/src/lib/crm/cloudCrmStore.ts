@@ -1,7 +1,7 @@
 import { Enquiry } from '../../types';
 import { DEMO_ENQUIRIES } from '../../services/mockData';
 
-const REDIS_ENQUIRIES_KEY = 'powertech_crm_enquiries_v1';
+const REDIS_ENQUIRIES_KEY = 'powertech_crm_enquiries_prod_v2';
 
 let serverEnquiriesMemoryCache: Enquiry[] | null = null;
 
@@ -20,8 +20,10 @@ function getCredentials() {
 }
 
 function getInitialEnquiries(): Enquiry[] {
-  return JSON.parse(JSON.stringify(DEMO_ENQUIRIES));
+  return [];
 }
+
+const DEMO_IDS = ['enq-1', 'enq-2', 'enq-3', 'enq-4'];
 
 export async function getCloudEnquiries(): Promise<Enquiry[]> {
   const { url, token } = getCredentials();
@@ -42,15 +44,18 @@ export async function getCloudEnquiries(): Promise<Enquiry[]> {
         const json = await res.json();
         if (json && json.result !== null && json.result !== undefined) {
           const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            serverEnquiriesMemoryCache = parsed;
-            return parsed;
+          if (Array.isArray(parsed)) {
+            const clean = parsed.filter(
+              (e: Enquiry) => !DEMO_IDS.includes(e.id) && e.customerName !== 'Rajesh Sharma'
+            );
+            serverEnquiriesMemoryCache = clean;
+            return clean;
           }
         }
       }
 
-      // If empty or first time, initialize with DEMO_ENQUIRIES
-      const initial = getInitialEnquiries();
+      // Initialize with clean production array
+      const initial: Enquiry[] = [];
       await saveCloudEnquiries(initial);
       return initial;
     } catch (err) {
