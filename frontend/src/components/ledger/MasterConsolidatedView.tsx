@@ -206,6 +206,14 @@ export default function MasterConsolidatedView({
     return list;
   }, [summaries, selectedDivision, selectedCompanyFilter]);
 
+  const currentList = useMemo(() => {
+    return selectedDivision === 'ALL'
+      ? summaries
+      : selectedDivision === 'PVD'
+      ? pvdSummaries
+      : laserSummaries;
+  }, [selectedDivision, summaries, pvdSummaries, laserSummaries]);
+
   const isIndividualView = Boolean(selectedCompanyFilter && filteredSummaries.length === 1);
   const singleSummary = isIndividualView ? filteredSummaries[0] : null;
 
@@ -214,6 +222,18 @@ export default function MasterConsolidatedView({
     month: 'long',
     year: 'numeric',
   });
+
+  const currentListTotalBill = useMemo(() => {
+    return currentList.reduce((sum, s) => {
+      return sum + (isMonthly ? (s.monthBilling + s.monthOtherBilling) : (s.billing + s.otherBilling));
+    }, 0);
+  }, [currentList, isMonthly]);
+
+  const currentListTotalCollection = useMemo(() => {
+    return currentList.reduce((sum, s) => {
+      return sum + (isMonthly ? (s.monthPaymentCollection + s.monthOtherPayment) : (s.paymentCollection + s.otherPayment));
+    }, 0);
+  }, [currentList, isMonthly]);
 
   // Calculate dynamic footer totals
   const displayFooterTotal = useMemo(() => {
@@ -793,12 +813,7 @@ export default function MasterConsolidatedView({
 
           {/* List of Companies (Dynamic based on selectedDivision) */}
           <div className="space-y-1.5 pt-1 max-h-[500px] overflow-y-auto pr-1">
-            {(selectedDivision === 'ALL'
-              ? summaries
-              : selectedDivision === 'PVD'
-              ? pvdSummaries
-              : laserSummaries
-            ).map((s) => {
+            {currentList.map((s) => {
               const isSelected = selectedCompanyFilter === s.company.id;
               const companyBill = isMonthly
                 ? (s.monthBilling + s.monthOtherBilling)
@@ -818,18 +833,15 @@ export default function MasterConsolidatedView({
                       : 'text-slate-300 hover:text-white hover:bg-slate-900/70'
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0 mr-2">
+                  <div className="flex items-center gap-2.5 min-w-0 mr-2">
                     <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                         s.hasEntryToday ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}
                     />
-                    <span className="truncate font-sans font-medium text-xs">{s.company.name}</span>
-                    {s.company.shortName && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80 shrink-0">
-                        {s.company.shortName}
-                      </span>
-                    )}
+                    <span className="font-sans font-bold text-xs text-white tracking-wide">
+                      {s.company.shortName || s.company.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="w-16 text-right text-xs font-black font-sans text-blue-400">
@@ -842,6 +854,21 @@ export default function MasterConsolidatedView({
                 </button>
               );
             })}
+          </div>
+
+          {/* Total at bottom of sidebar list */}
+          <div className="pt-2.5 pb-2 border-t-2 border-slate-700/80 px-3 flex items-center justify-between text-xs bg-[#0b1329]/95 rounded-xl">
+            <span className="font-black uppercase tracking-wider text-slate-100 text-xs">
+              Total
+            </span>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="w-16 text-right text-xs font-black font-sans text-blue-400">
+                ₹{currentListTotalBill.toLocaleString('en-IN')}
+              </span>
+              <span className="w-16 text-right text-xs font-black font-sans text-emerald-400">
+                ₹{currentListTotalCollection.toLocaleString('en-IN')}
+              </span>
+            </div>
           </div>
 
           <div className="pt-3 border-t border-slate-800 px-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
