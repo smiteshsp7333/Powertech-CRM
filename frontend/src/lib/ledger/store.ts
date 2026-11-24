@@ -207,8 +207,9 @@ export function sanitizeEntry(raw: CompanyDailyEntry): CompanyDailyEntry {
     }
   }
 
-  const calculatedBase = bWithGst > 0 ? Math.round(bWithGst / 1.18) : 0;
-  const calculatedTotalBilling = bWithGst + oBill;
+  const calculatedBase = bWithGst > 0 ? Math.round(bWithGst / 1.18) : typeof entry.billing === 'number' ? entry.billing : 0;
+  // Bill = Base bill + other bill (NO GST to be added)
+  const calculatedTotalBilling = calculatedBase + oBill;
   const calculatedTotalPayment = pCol + oPay;
 
   return {
@@ -352,8 +353,8 @@ export function computeConsolidatedSummary(
       typeof todayEntry?.paymentCollection === 'number' ? todayEntry.paymentCollection : 0;
     const otherPayment = typeof todayEntry?.otherPayment === 'number' ? todayEntry.otherPayment : 0;
 
-    // Total Billing MUST STRICTLY be Billing with GST + Other Billing
-    const todayBilling = billingWithGst + otherBilling;
+    // Bill = Base bill + other bill (NO GST to be added)
+    const todayBilling = billing + otherBilling;
     const todayPayment = paymentCollection + otherPayment;
 
     const monthBilling = companyMonthEntries.reduce(
@@ -392,7 +393,8 @@ export function computeConsolidatedSummary(
       0
     );
 
-    const monthTotalInvoicedBilling = monthBillingWithGst + monthOtherBilling;
+    // Bill = Base bill + other bill (NO GST to be added)
+    const monthTotalInvoicedBilling = monthBilling + monthOtherBilling;
 
     const collectionRate =
       monthTotalInvoicedBilling > 0
@@ -447,7 +449,7 @@ export function computeConsolidatedSummary(
   };
 
   const grandMonthTotalInvoicedBilling =
-    grandTotal.monthBillingWithGst + grandTotal.monthOtherBilling;
+    grandTotal.monthBilling + grandTotal.monthOtherBilling;
   grandTotal.collectionRate =
     grandMonthTotalInvoicedBilling > 0
       ? Number(((grandTotal.monthPayment / grandMonthTotalInvoicedBilling) * 100).toFixed(1))

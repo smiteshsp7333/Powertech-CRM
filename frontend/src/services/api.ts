@@ -63,7 +63,7 @@ function purgeLegacyDemoStores() {
       localStorage.setItem(versionKey, 'true');
     }
     hasPurgedLegacy = true;
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // In-memory / localStorage reactive store helper for Vercel preview
@@ -102,7 +102,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const email = (body.email || '').trim().toLowerCase();
     const password = (body.password || '').trim();
@@ -263,7 +263,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
 
       const custName = body.customerName || 'Customer';
       const compName = body.companyName || '';
@@ -372,7 +372,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
 
       const customers = getStore<any[]>(STORE_KEYS.CUSTOMERS, DEMO_CUSTOMERS);
       let matchedCust = customers.find((c) => c.id === body.customerId);
@@ -482,7 +482,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const newOrd = {
@@ -575,7 +575,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
     const order = orders.find((o) => o.id === orderId);
@@ -627,7 +627,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const dispatches = getStore<any[]>(STORE_KEYS.DISPATCHES, DEMO_DISPATCHES);
     const dsp = dispatches.find((d) => d.id === dspId);
@@ -647,7 +647,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
 
       const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
       const order = orders.find((o) => o.id === body.orderId);
@@ -749,7 +749,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const invoices = getStore<any[]>(STORE_KEYS.INVOICES, DEMO_INVOICES);
     const invoice = invoices.find((inv) => inv.id === invId);
@@ -781,7 +781,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
 
       const orders = getStore<any[]>(STORE_KEYS.ORDERS, DEMO_ORDERS);
       const order = orders.find((o) => o.id === body.orderId);
@@ -878,7 +878,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
 
       const suppliers = getStore<any[]>(STORE_KEYS.SUPPLIERS, DEMO_SUPPLIERS);
       let supplier = suppliers.find((s) => s.id === body.supplierId);
@@ -957,7 +957,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
@@ -1014,7 +1014,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
@@ -1054,7 +1054,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
     let body: any = {};
     try {
       body = JSON.parse(options.body as string);
-    } catch (e) {}
+    } catch (e) { }
 
     const summary = getStore<any>(STORE_KEYS.DAILY_SUMMARY, DEMO_DAILY_SUMMARY);
     const records = [...summary.dailyRecords];
@@ -1118,7 +1118,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
       const newCust = {
         id: `c-${Date.now()}`,
         name: body.name || 'Customer',
@@ -1145,7 +1145,7 @@ function resolveMockResponse<T>(endpoint: string, options: RequestInit = {}): T 
       let body: any = {};
       try {
         body = JSON.parse(options.body as string);
-      } catch (e) {}
+      } catch (e) { }
       const newSupp = {
         id: `s-${Date.now()}`,
         name: body.name || 'Supplier',

@@ -5,6 +5,7 @@ export interface GroupCompany {
   name: string;
   category: CompanyCategory;
   code: string;
+  shortName?: string;
   location?: string;
   defaultUsername: string;
   defaultEmail: string;

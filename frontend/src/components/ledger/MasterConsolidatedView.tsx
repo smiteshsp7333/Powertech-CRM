@@ -39,6 +39,8 @@ interface MasterConsolidatedViewProps {
   onToggleDatePermission?: (date: string, unlock: boolean) => void;
   ledgerSettings?: { allowNov18Update?: boolean; unlockedDates?: string[] };
   onToggleNov18Permission?: (enabled: boolean) => void;
+  showDateAuthModal?: boolean;
+  setShowDateAuthModal?: (show: boolean) => void;
 }
 
 export type DivisionFilter = 'ALL' | 'PVD' | 'LASER';
@@ -56,12 +58,18 @@ export default function MasterConsolidatedView({
   onToggleDatePermission,
   ledgerSettings,
   onToggleNov18Permission,
+  showDateAuthModal,
+  setShowDateAuthModal,
 }: MasterConsolidatedViewProps) {
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedDivision, setSelectedDivision] = useState<DivisionFilter>('ALL');
   const [showDivisionBoxes, setShowDivisionBoxes] = useState<boolean>(true);
   const [adminTargetDate, setAdminTargetDate] = useState<string>('2026-11-18');
+  const [localDateAuthModal, setLocalDateAuthModal] = useState(false);
+
+  const isAuthModalOpen = showDateAuthModal !== undefined ? showDateAuthModal : localDateAuthModal;
+  const setAuthModalOpen = setShowDateAuthModal || setLocalDateAuthModal;
 
   const currentUnlockedDates = useMemo(() => {
     if (Array.isArray(unlockedDates)) return unlockedDates;
@@ -300,26 +308,81 @@ export default function MasterConsolidatedView({
 
   return (
     <div className="space-y-6">
-      {/* Super Admin Dynamic Date Entry Authorization Control */}
-      <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold border transition-colors ${
-                currentUnlockedDates.length > 0
-                  ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-                  : 'bg-slate-800/80 text-slate-500 border-slate-700/80'
-              }`}
-            >
-              <ShieldCheck className="w-5 h-5" />
+      {/* Super Admin Date Access Mini Status Bar */}
+      <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setAuthModalOpen(true)}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111c38] hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 font-semibold cursor-pointer transition-all shadow-sm"
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+          <span>Historical Date Authorization</span>
+          <span
+            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+              currentUnlockedDates.length > 0
+                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+          >
+            {currentUnlockedDates.length > 0
+              ? `${currentUnlockedDates.length} Date(s) Authorized`
+              : 'All Historical Dates Locked'}
+          </span>
+        </button>
+
+        {currentUnlockedDates.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-[11px] text-slate-400">Open Dates:</span>
+            {currentUnlockedDates.map((d) => (
+              <span
+                key={d}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-500/15 text-purple-200 border border-purple-500/30 text-[11px] font-sans font-bold"
+              >
+                <span>{d.split('-').reverse().join('-')}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggleDatePermission && onToggleDatePermission(d, false)}
+                  className="hover:text-rose-400 transition-colors cursor-pointer"
+                  title={`Lock ${d}`}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Super Admin Date Entry Authorization Modal (Round tab inside as requested) */}
+      {isAuthModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-xl bg-[#0f172a] border border-slate-700/80 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    Historical Date Entry Authorization
+                  </h3>
+                  <p className="text-xs text-slate-400">Super Admin Security Control</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAuthModalOpen(false)}
+                type="button"
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-sm font-bold text-white tracking-tight">
-                  Historical Date Entry Authorization (Super Admin Control)
-                </h3>
+
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="font-semibold text-slate-300">Authorization Status:</span>
                 <span
-                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
                     currentUnlockedDates.length > 0
                       ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                       : 'bg-slate-800 text-slate-400 border-slate-700'
@@ -330,84 +393,96 @@ export default function MasterConsolidatedView({
                     : 'All Historical Dates Locked'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Select any specific date below to grant or revoke data entry access for all 9 operating units.
-              </p>
+
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                  Select Historical Date to Authorize
+                </label>
+                <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                  <div className="w-full sm:flex-1 flex items-center gap-2 bg-[#1e293b] px-3.5 py-2.5 rounded-xl border border-slate-700">
+                    <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
+                    <input
+                      type="date"
+                      value={adminTargetDate}
+                      onChange={(e) => setAdminTargetDate(e.target.value)}
+                      className="bg-transparent border-none text-white text-xs font-sans font-bold focus:outline-none cursor-pointer w-full"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onToggleDatePermission) {
+                        onToggleDatePermission(adminTargetDate, !isTargetDateUnlocked);
+                      } else if (onToggleNov18Permission) {
+                        onToggleNov18Permission(!isTargetDateUnlocked);
+                      }
+                    }}
+                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 flex items-center justify-center gap-2 ${
+                      isTargetDateUnlocked
+                        ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-600/30'
+                    }`}
+                  >
+                    {isTargetDateUnlocked ? (
+                      <>
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Lock Access ({adminTargetDate.split('-').reverse().join('-')})</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Grant Access ({adminTargetDate.split('-').reverse().join('-')})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Badges of Currently Unlocked Dates with 1-click revoke (x) */}
+              <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                <span className="text-slate-400 font-semibold text-[11px]">
+                  Active Authorized Historical Dates:
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentUnlockedDates.length === 0 ? (
+                    <span className="text-slate-500 italic text-[11px]">
+                      None (only today is open for normal entries)
+                    </span>
+                  ) : (
+                    currentUnlockedDates.map((d) => (
+                      <span
+                        key={d}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/15 text-purple-200 border border-purple-500/30 font-sans font-bold text-xs"
+                      >
+                        <span>{d.split('-').reverse().join('-')}</span>
+                        <button
+                          type="button"
+                          onClick={() => onToggleDatePermission && onToggleDatePermission(d, false)}
+                          className="hover:text-rose-400 transition-colors p-0.5 rounded cursor-pointer"
+                          title={`Revoke access for ${d}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Date Picker & Action Button */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="flex items-center gap-2 bg-[#0b1329] px-3.5 py-2 rounded-xl border border-slate-800">
-              <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-              <input
-                type="date"
-                value={adminTargetDate}
-                onChange={(e) => setAdminTargetDate(e.target.value)}
-                className="bg-transparent border-none text-white text-xs font-sans font-bold focus:outline-none cursor-pointer"
-                title="Select date to authorize or lock"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (onToggleDatePermission) {
-                  onToggleDatePermission(adminTargetDate, !isTargetDateUnlocked);
-                } else if (onToggleNov18Permission) {
-                  onToggleNov18Permission(!isTargetDateUnlocked);
-                }
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 flex items-center gap-2 ${
-                isTargetDateUnlocked
-                  ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
-                  : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-600/30'
-              }`}
-            >
-              {isTargetDateUnlocked ? (
-                <>
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Lock / Revoke Access for {adminTargetDate.split('-').reverse().join('-')}</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Grant Access for {adminTargetDate.split('-').reverse().join('-')} to All Units</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Badges of Currently Unlocked Dates with 1-click revoke (x) */}
-        <div className="pt-3 border-t border-slate-800/80 flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-400 font-semibold text-[11px]">
-            Active Authorized Historical Dates:
-          </span>
-          {currentUnlockedDates.length === 0 ? (
-            <span className="text-slate-500 italic text-[11px]">
-              None (only today is open for normal entries)
-            </span>
-          ) : (
-            currentUnlockedDates.map((d) => (
-              <span
-                key={d}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-200 border border-purple-500/30 font-sans font-bold text-[11px]"
+            <div className="pt-3 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-all cursor-pointer"
               >
-                <span>{d.split('-').reverse().join('-')}</span>
-                <button
-                  type="button"
-                  onClick={() => onToggleDatePermission && onToggleDatePermission(d, false)}
-                  className="hover:text-rose-400 transition-colors p-0.5 rounded cursor-pointer"
-                  title={`Revoke access for ${d}`}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))
-          )}
+                Done
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 5 Executive Metric Cards Aligned with Screenshot 1 Columns */}
       {!isMonthly ? (
@@ -502,21 +577,21 @@ export default function MasterConsolidatedView({
             </span>
           </div>
 
-          {/* Box 5: Total Invoiced Billing (Billing with GST + Other Billing) */}
+          {/* Box 5: Total Invoiced Billing (Base Bill + Other Bill - No GST) */}
           <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800/80 shadow-xl transition-all hover:border-slate-700">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Total Billing (GST + Other)
+                Total Billing (No GST)
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                 <ShieldCheck className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-black font-sans text-blue-400 tracking-tight">
-              ₹{(displayFooterTotal.billingWithGst + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
+              ₹{(displayFooterTotal.billing + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
             </div>
             <span className="text-xs text-slate-400 mt-2 block truncate">
-              Billing with GST (₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}) + Other (₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')})
+              Base (₹{displayFooterTotal.billing.toLocaleString('en-IN')}) + Other (₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')})
             </span>
           </div>
         </div>
@@ -608,27 +683,605 @@ export default function MasterConsolidatedView({
             </span>
           </div>
 
-          {/* MTD Total Billing (GST + Other) */}
+          {/* MTD Total Billing (Base + Other - No GST) */}
           <div className="bg-[#111c38] p-5 rounded-2xl border border-slate-800/80 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                MTD Total Billing (GST + Other)
+                MTD Total Billing (No GST)
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                 <ShieldCheck className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-black font-sans text-blue-400 tracking-tight">
-              ₹{(displayFooterTotal.monthBillingWithGst + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
+              ₹{(displayFooterTotal.monthBilling + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
             </div>
-            <span className="text-xs text-slate-400 mt-2 block">
-              Cumulative Billing with GST + Other Billing
+            <span className="text-xs text-slate-400 mt-2 block truncate">
+              Cumulative Base + Other Billing (No GST)
             </span>
           </div>
         </div>
       )}
 
-      {/* DEDICATED DIVISION COLLECTIONS COMPARISON PANELS (PVD vs LASER) */}
+      {/* Main Container: Left Sidebar + Right Master Table */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Left Side: Companies Switcher & Division Tabs */}
+        <div className="xl:col-span-4 bg-[#0d1527] rounded-2xl border border-slate-800/90 p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800 px-2">
+            <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-blue-400" /> Group Companies
+            </span>
+            <span className="text-[11px] text-slate-400 font-semibold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800">
+              Group Units
+            </span>
+          </div>
+
+          {/* Division Filter Segmented Tabs */}
+          <div className="grid grid-cols-3 gap-1 bg-[#0b1329] p-1 rounded-xl border border-slate-800 text-[11px] font-semibold">
+            <button
+              type="button"
+              onClick={() => handleSelectDivision('ALL')}
+              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedDivision === 'ALL'
+                  ? 'bg-slate-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectDivision('LASER')}
+              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedDivision === 'LASER'
+                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
+                  : 'text-slate-400 hover:text-blue-400'
+              }`}
+            >
+              Laser (6)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectDivision('PVD')}
+              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedDivision === 'PVD'
+                  ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
+                  : 'text-slate-400 hover:text-purple-400'
+              }`}
+            >
+              PVD (3)
+            </button>
+          </div>
+
+          {/* Manage Accounts Button for Super Admin */}
+          <button
+            type="button"
+            onClick={() => setShowAccountsModal(true)}
+            className="w-full py-2.5 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-800 text-white text-xs font-semibold flex items-center justify-between transition-all text-left cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <Key className="w-3.5 h-3.5 text-blue-400" />
+              <span>Company Passwords</span>
+            </span>
+            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-sans font-bold">
+              Manage
+            </span>
+          </button>
+
+          {/* Master consolidated button */}
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs font-semibold cursor-pointer ${
+              selectedCompanyFilter === null && selectedDivision === 'ALL'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <span>All Companies (Consolidated)</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          {/* Column Headers for Sidebar (Bill & Collection) */}
+          <div className="flex items-center justify-between px-2 pt-2 pb-1 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+            <span>Company</span>
+            <div className="flex items-center gap-3 text-right">
+              <span className="w-16 text-right text-blue-400 font-black">Bill</span>
+              <span className="w-16 text-right text-emerald-400 font-black">Collection</span>
+            </div>
+          </div>
+
+          {/* List of Companies (Dynamic based on selectedDivision) */}
+          <div className="space-y-1.5 pt-1 max-h-[500px] overflow-y-auto pr-1">
+            {(selectedDivision === 'ALL'
+              ? summaries
+              : selectedDivision === 'PVD'
+              ? pvdSummaries
+              : laserSummaries
+            ).map((s) => {
+              const isSelected = selectedCompanyFilter === s.company.id;
+              const companyBill = isMonthly
+                ? (s.monthBilling + s.monthOtherBilling)
+                : (s.billing + s.otherBilling);
+              const companyCollection = isMonthly
+                ? (s.monthPaymentCollection + s.monthOtherPayment)
+                : (s.paymentCollection + s.otherPayment);
+
+              return (
+                <button
+                  key={s.company.id}
+                  type="button"
+                  onClick={() => setSelectedCompanyFilter(isSelected ? null : s.company.id)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-800 text-white font-bold border border-slate-700'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-900/70'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 mr-2">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        s.hasEntryToday ? 'bg-emerald-400' : 'bg-amber-400'
+                      }`}
+                    />
+                    <span className="truncate font-sans font-medium text-xs">{s.company.name}</span>
+                    {s.company.shortName && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80 shrink-0">
+                        {s.company.shortName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="w-16 text-right text-xs font-black font-sans text-blue-400">
+                      ₹{companyBill.toLocaleString('en-IN')}
+                    </span>
+                    <span className="w-16 text-right text-xs font-black font-sans text-emerald-400">
+                      ₹{companyCollection.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="pt-3 border-t border-slate-800 px-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Updated
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" /> Pending
+            </span>
+          </div>
+        </div>
+
+        {/* Right Side: The Master Consolidated Table & Related Data View */}
+        <div className="xl:col-span-8 bg-[#0d1527] rounded-2xl border border-slate-800/90 overflow-hidden shadow-2xl">
+          {/* Card Header with DATE FILTER & Quick Link to CRM Dashboard */}
+          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0b1329]/50">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-white tracking-tight">
+                  {selectedDivision === 'PVD'
+                    ? 'PVD Coating Division Collections & Operational Ledger'
+                    : selectedDivision === 'LASER'
+                    ? 'Laser Division Collections & Operational Ledger'
+                    : isMonthly
+                    ? 'Monthly Cumulative Consolidated Billing & Payment Matrix'
+                    : 'Consolidated Operational Billing & Payment Register'}
+                </h2>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                    selectedDivision === 'PVD'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                      : selectedDivision === 'LASER'
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  {selectedDivision === 'PVD'
+                    ? 'PVD Related Data'
+                    : selectedDivision === 'LASER'
+                    ? 'Laser Related Data'
+                    : isMonthly
+                    ? 'Month-to-Date'
+                    : 'Daily Matrix'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {selectedDivision !== 'ALL'
+                  ? `Showing ${filteredSummaries.length} plants in ${selectedDivision} Division • Date: ${selectedDate}`
+                  : isMonthly
+                  ? `Aggregated figures for ${monthName} • Real-time audit across operating plants`
+                  : `Date: ${selectedDate} • Daily Collections & Cumulative Month Figures`}
+              </p>
+            </div>
+
+            {/* Right Corner Controls: Link to CRM + DATE FILTER + Reset Filter */}
+            <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-white border border-blue-500/30 text-xs font-bold transition-all shadow-sm"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>CRM Dashboard</span>
+              </Link>
+
+              {(selectedCompanyFilter || selectedDivision !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs text-blue-400 hover:underline font-semibold flex items-center gap-1 pr-2 cursor-pointer"
+                >
+                  <span>Show All Companies</span>
+                </button>
+              )}
+
+              {/* Date Filter Pill */}
+              <div className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 rounded-full text-xs text-white font-medium border border-slate-700 transition-all shadow-inner">
+                <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent border-none text-white focus:outline-none cursor-pointer font-sans text-xs"
+                  title="Filter register by date"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Active Filter Notification Pill */}
+          {selectedDivision !== 'ALL' && (
+            <div
+              className={`px-4 py-2.5 border-b flex items-center justify-between text-xs font-semibold ${
+                selectedDivision === 'PVD'
+                  ? 'bg-purple-950/30 border-purple-900/50 text-purple-300'
+                  : 'bg-blue-950/30 border-blue-900/50 text-blue-300'
+              }`}
+            >
+              <span>
+                Filtering related data for <strong>{selectedDivision} Division</strong> (
+                {filteredSummaries.length} Plants) • Total Collection: ₹
+                {(isMonthly
+                  ? selectedDivision === 'PVD'
+                    ? pvdTotals.monthPayment
+                    : laserTotals.monthPayment
+                  : selectedDivision === 'PVD'
+                  ? pvdTotals.todayPayment
+                  : laserTotals.todayPayment
+                ).toLocaleString('en-IN')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedDivision('ALL')}
+                className="underline hover:text-white text-[11px] font-bold cursor-pointer"
+              >
+                Clear Division Filter
+              </button>
+            </div>
+          )}
+
+          {/* TABLE DISPLAY */}
+          <div className="overflow-x-auto">
+            {!isMonthly ? (
+              // DAILY MATRIX TABLE (STRICTLY SCREENSHOT 1 COLUMNS - NO NET BALANCER)
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-[#0b1329] text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3.5">Company Name</th>
+                    <th className="py-3 px-3 text-right">Billing</th>
+                    <th className="py-3 px-3 text-right text-cyan-400">Other Billing</th>
+                    <th className="py-3 px-3 text-right text-blue-400">Including GST</th>
+                    <th className="py-3 px-3 text-right text-amber-400">Total Billing (No GST)</th>
+                    <th className="py-3 px-3 text-right text-emerald-400">Payment Collection</th>
+                    <th className="py-3 px-3 text-right text-purple-400">Other Payment</th>
+                    <th className="py-3 px-3 text-center">Payment Received Date &amp; Time</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredSummaries.map((item) => {
+                    const isPvd = isPvdCompany(item.company);
+                    return (
+                      <tr
+                        key={item.company.id}
+                        className="hover:bg-slate-800/40 transition-colors group"
+                      >
+                        <td className="py-3.5 px-3.5 font-bold text-white">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-7 h-7 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center text-[10px] font-sans font-black ${
+                                isPvd ? 'text-purple-400' : 'text-blue-400'
+                              }`}
+                            >
+                              {item.company.code}
+                            </span>
+                            <div>
+                              <div className="text-white font-bold leading-tight flex items-center gap-1.5 font-sans">
+                                <span>{item.company.name}</span>
+                                {item.company.shortName && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80">
+                                    {item.company.shortName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Column 2: Billing (Base) */}
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-slate-100">
+                          ₹{item.billing.toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 3: Other Billing */}
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-cyan-400">
+                          ₹{(item.otherBilling || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 4: Including GST */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
+                          ₹{(item.billingWithGst || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 5: Total Billing = Base Billing + Other Billing (No GST) */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
+                          ₹{(item.billing + (item.otherBilling || 0)).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 6: Payment Collection */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
+                          ₹{(item.paymentCollection || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 7: Other Payment */}
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
+                          ₹{(item.otherPayment || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Column 8: Payment Received Date & Time */}
+                        <td className="py-3.5 px-3 text-center text-xs">
+                          {item.todayPayment > 0 ? (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="text-slate-200 font-bold font-sans">
+                                {item.paymentReceivedAt ||
+                                  `${selectedDate.split('-').reverse().join('-')}, 04:00 PM`}
+                              </span>
+                              {item.paymentMode && (
+                                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-sans font-semibold">
+                                  {item.paymentMode.replace('_', ' ')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 italic font-sans text-xs">-</span>
+                          )}
+                        </td>
+
+                        {/* Column 9: Status */}
+                        <td className="py-3.5 px-3 text-center">
+                          {item.hasEntryToday ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                              <CheckCircle2 className="w-3 h-3" /> Submitted
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              <Clock className="w-3 h-3" /> Pending
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Column 10: Action */}
+                        <td className="py-3.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => onEditCompany(item.company.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Edit2 className="w-3 h-3 text-blue-400" />
+                            <span>Edit</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+
+                <tfoot>
+                  <tr className="bg-[#0b1329] border-t-2 border-blue-500/50 text-white font-bold text-xs">
+                    <td className="py-4 px-3.5 uppercase tracking-wider font-black flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
+                      {displayFooterTotal.label}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-white">
+                      ₹{displayFooterTotal.billing.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
+                      ₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
+                      ₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
+                      ₹{(displayFooterTotal.billing + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
+                      ₹{displayFooterTotal.paymentCollection.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
+                      ₹{displayFooterTotal.otherPayment.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-center text-xs text-slate-300">
+                      Live Timestamped
+                    </td>
+                    <td className="py-4 px-3 text-center text-xs text-slate-300">
+                      {displayFooterTotal.statusText}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs font-bold text-slate-400">Verified</span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            ) : (
+              // MONTHLY CUMULATIVE TABLE (NO NET BALANCER)
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-[#0b1329] text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3.5">Company Name</th>
+                    <th className="py-3 px-3 text-right">Billing (MTD)</th>
+                    <th className="py-3 px-3 text-right text-cyan-400">Other Billing (MTD)</th>
+                    <th className="py-3 px-3 text-right text-blue-400">Including GST (MTD)</th>
+                    <th className="py-3 px-3 text-right text-amber-400">Total Billing (MTD No GST)</th>
+                    <th className="py-3 px-3 text-right text-emerald-400">Payment Collection (MTD)</th>
+                    <th className="py-3 px-3 text-right text-purple-400">Other Payment (MTD)</th>
+                    <th className="py-3 px-3 text-center">Collection %</th>
+                    <th className="py-3 px-3 text-center">Latest Payment Received At</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredSummaries.map((item) => {
+                    const isPvd = isPvdCompany(item.company);
+                    return (
+                      <tr
+                        key={item.company.id}
+                        className="hover:bg-slate-800/40 transition-colors group"
+                      >
+                        <td className="py-3.5 px-3.5 font-bold text-white">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-7 h-7 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center text-[10px] font-sans font-black ${
+                                isPvd ? 'text-purple-400' : 'text-blue-400'
+                              }`}
+                            >
+                              {item.company.code}
+                            </span>
+                            <div>
+                              <div className="text-white font-bold leading-tight flex items-center gap-1.5 font-sans">
+                                <span>{item.company.name}</span>
+                                {item.company.shortName && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80">
+                                    {item.company.shortName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-slate-100">
+                          ₹{item.monthBilling.toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-cyan-400">
+                          ₹{(item.monthOtherBilling || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
+                          ₹{(item.monthBillingWithGst || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Total Billing MTD = monthBilling + monthOtherBilling (No GST) */}
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
+                          ₹{((item.monthBilling || 0) + (item.monthOtherBilling || 0)).toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
+                          ₹{(item.monthPaymentCollection || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
+                          ₹{(item.monthOtherPayment || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span className="text-xs font-bold font-sans text-emerald-400">
+                              {item.collectionRate}%
+                            </span>
+                            <div className="w-16 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-400 h-full rounded-full"
+                                style={{ width: `${Math.min(100, item.collectionRate)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-3 text-center text-xs text-slate-300 font-sans">
+                          {item.paymentReceivedAt ||
+                            `${selectedDate.split('-').reverse().join('-')}, 04:00 PM`}
+                        </td>
+
+                        <td className="py-3.5 px-3 text-center">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3 h-3" /> Reconciled
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => onEditCompany(item.company.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Edit2 className="w-3 h-3 text-blue-400" />
+                            <span>Edit</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+
+                <tfoot>
+                  <tr className="bg-[#0b1329] border-t-2 border-purple-500/50 text-white font-bold text-xs">
+                    <td className="py-4 px-3.5 uppercase tracking-wider font-black flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-ping" />
+                      {displayFooterTotal.label}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-white">
+                      ₹{displayFooterTotal.monthBilling.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
+                      ₹{displayFooterTotal.monthOtherBilling.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
+                      ₹{displayFooterTotal.monthBillingWithGst.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
+                      ₹{(displayFooterTotal.monthBilling + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
+                      ₹{displayFooterTotal.monthPaymentCollection.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
+                      ₹{displayFooterTotal.monthOtherPayment.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-4 px-3 text-center text-xs text-slate-300">
+                      {displayFooterTotal.collectionRate}%
+                    </td>
+                    <td className="py-4 px-3 text-center text-xs text-slate-300">
+                      Live Timestamped
+                    </td>
+                    <td className="py-4 px-3 text-center text-xs text-slate-300">
+                      {displayFooterTotal.statusText}
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs font-bold text-slate-400">Verified</span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* DEDICATED DIVISION COLLECTIONS COMPARISON PANELS (PVD vs LASER) - MOVED BELOW */}
       {showDivisionBoxes && (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
@@ -812,578 +1465,6 @@ export default function MasterConsolidatedView({
           </div>
         </div>
       )}
-
-      {/* Main Container: Left Sidebar + Right Master Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Side: Companies Switcher & Division Tabs */}
-        <div className="bg-[#0d1527] rounded-2xl border border-slate-800/90 p-4 shadow-xl space-y-3">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800 px-2">
-            <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-blue-400" /> Group Companies
-            </span>
-            <span className="text-[11px] text-slate-400 font-semibold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800">
-              Group Units
-            </span>
-          </div>
-
-          {/* Division Filter Segmented Tabs */}
-          <div className="grid grid-cols-3 gap-1 bg-[#0b1329] p-1 rounded-xl border border-slate-800 text-[11px] font-semibold">
-            <button
-              type="button"
-              onClick={() => handleSelectDivision('ALL')}
-              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
-                selectedDivision === 'ALL'
-                  ? 'bg-slate-800 text-white font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectDivision('LASER')}
-              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
-                selectedDivision === 'LASER'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
-                  : 'text-slate-400 hover:text-blue-400'
-              }`}
-            >
-              Laser (6)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectDivision('PVD')}
-              className={`py-1.5 rounded-lg transition-all cursor-pointer ${
-                selectedDivision === 'PVD'
-                  ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                  : 'text-slate-400 hover:text-purple-400'
-              }`}
-            >
-              PVD (3)
-            </button>
-          </div>
-
-          {/* Manage Accounts Button for Super Admin */}
-          <button
-            type="button"
-            onClick={() => setShowAccountsModal(true)}
-            className="w-full py-2.5 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-800 text-white text-xs font-semibold flex items-center justify-between transition-all text-left cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <Key className="w-3.5 h-3.5 text-blue-400" />
-              <span>Company Passwords</span>
-            </span>
-            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-sans font-bold">
-              Manage
-            </span>
-          </button>
-
-          {/* Master consolidated button */}
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs font-semibold cursor-pointer ${
-              selectedCompanyFilter === null && selectedDivision === 'ALL'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <span>All Companies (Consolidated)</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
-          {/* List of Companies (Dynamic based on selectedDivision) */}
-          <div className="space-y-1.5 pt-1 max-h-[380px] overflow-y-auto pr-1">
-            {(selectedDivision === 'ALL'
-              ? summaries
-              : selectedDivision === 'PVD'
-              ? pvdSummaries
-              : laserSummaries
-            ).map((s) => {
-              const isSelected = selectedCompanyFilter === s.company.id;
-              const isPvd = isPvdCompany(s.company);
-              return (
-                <button
-                  key={s.company.id}
-                  type="button"
-                  onClick={() => setSelectedCompanyFilter(isSelected ? null : s.company.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs cursor-pointer ${
-                    isSelected
-                      ? 'bg-slate-800 text-white font-bold border border-slate-700'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-900/70'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        s.hasEntryToday ? 'bg-emerald-400' : 'bg-amber-400'
-                      }`}
-                    />
-                    <span className="truncate font-sans">{s.company.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                    <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                        isPvd
-                          ? 'bg-purple-500/15 text-purple-400'
-                          : 'bg-blue-500/15 text-blue-400'
-                      }`}
-                    >
-                      {isPvd ? 'PVD' : 'LASER'}
-                    </span>
-                    <span className="text-xs font-bold font-sans text-slate-300">
-                      ₹{(isMonthly ? (s.monthBillingWithGst + s.monthOtherBilling) : s.todayBilling).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="pt-3 border-t border-slate-800 px-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Updated
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400" /> Pending
-            </span>
-          </div>
-        </div>
-
-        {/* Right Side: The Master Consolidated Table & Related Data View */}
-        <div className="lg:col-span-3 bg-[#0d1527] rounded-2xl border border-slate-800/90 overflow-hidden shadow-2xl">
-          {/* Card Header with DATE FILTER & Quick Link to CRM Dashboard */}
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0b1329]/50">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-white tracking-tight">
-                  {selectedDivision === 'PVD'
-                    ? 'PVD Coating Division Collections & Operational Ledger'
-                    : selectedDivision === 'LASER'
-                    ? 'Laser Division Collections & Operational Ledger'
-                    : isMonthly
-                    ? 'Monthly Cumulative Consolidated Billing & Payment Matrix'
-                    : 'Consolidated Operational Billing & Payment Register'}
-                </h2>
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                    selectedDivision === 'PVD'
-                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                      : selectedDivision === 'LASER'
-                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                      : 'bg-slate-800 text-slate-300 border-slate-700'
-                  }`}
-                >
-                  {selectedDivision === 'PVD'
-                    ? 'PVD Related Data'
-                    : selectedDivision === 'LASER'
-                    ? 'Laser Related Data'
-                    : isMonthly
-                    ? 'Month-to-Date'
-                    : 'Daily Matrix'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {selectedDivision !== 'ALL'
-                  ? `Showing ${filteredSummaries.length} plants in ${selectedDivision} Division • Date: ${selectedDate}`
-                  : isMonthly
-                  ? `Aggregated figures for ${monthName} • Real-time audit across operating plants`
-                  : `Date: ${selectedDate} • Daily Collections & Cumulative Month Figures`}
-              </p>
-            </div>
-
-            {/* Right Corner Controls: Link to CRM + DATE FILTER + Reset Filter */}
-            <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-white border border-blue-500/30 text-xs font-bold transition-all shadow-sm"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>CRM Dashboard</span>
-              </Link>
-
-              {(selectedCompanyFilter || selectedDivision !== 'ALL') && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="text-xs text-blue-400 hover:underline font-semibold flex items-center gap-1 pr-2 cursor-pointer"
-                >
-                  <span>Show All Companies</span>
-                </button>
-              )}
-
-              {/* Date Filter Pill */}
-              <div className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 rounded-full text-xs text-white font-medium border border-slate-700 transition-all shadow-inner">
-                <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-transparent border-none text-white focus:outline-none cursor-pointer font-sans text-xs"
-                  title="Filter register by date"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Active Filter Notification Pill */}
-          {selectedDivision !== 'ALL' && (
-            <div
-              className={`px-4 py-2.5 border-b flex items-center justify-between text-xs font-semibold ${
-                selectedDivision === 'PVD'
-                  ? 'bg-purple-950/30 border-purple-900/50 text-purple-300'
-                  : 'bg-blue-950/30 border-blue-900/50 text-blue-300'
-              }`}
-            >
-              <span>
-                Filtering related data for <strong>{selectedDivision} Division</strong> (
-                {filteredSummaries.length} Plants) • Total Collection: ₹
-                {(isMonthly
-                  ? selectedDivision === 'PVD'
-                    ? pvdTotals.monthPayment
-                    : laserTotals.monthPayment
-                  : selectedDivision === 'PVD'
-                  ? pvdTotals.todayPayment
-                  : laserTotals.todayPayment
-                ).toLocaleString('en-IN')}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedDivision('ALL')}
-                className="underline hover:text-white text-[11px] font-bold cursor-pointer"
-              >
-                Clear Division Filter
-              </button>
-            </div>
-          )}
-
-          {/* TABLE DISPLAY */}
-          <div className="overflow-x-auto">
-            {!isMonthly ? (
-              // DAILY MATRIX TABLE (STRICTLY SCREENSHOT 1 COLUMNS - NO NET BALANCER)
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-[#0b1329] text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3 px-3.5">Company Name</th>
-                    <th className="py-3 px-3 text-right">Billing</th>
-                    <th className="py-3 px-3 text-right text-cyan-400">Other Billing</th>
-                    <th className="py-3 px-3 text-right text-blue-400">Including GST</th>
-                    <th className="py-3 px-3 text-right text-amber-400">Total Billing</th>
-                    <th className="py-3 px-3 text-right text-emerald-400">Payment Collection</th>
-                    <th className="py-3 px-3 text-right text-purple-400">Other Payment</th>
-                    <th className="py-3 px-3 text-center">Payment Received Date &amp; Time</th>
-                    <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filteredSummaries.map((item) => {
-                    const isPvd = isPvdCompany(item.company);
-                    return (
-                      <tr
-                        key={item.company.id}
-                        className="hover:bg-slate-800/40 transition-colors group"
-                      >
-                        <td className="py-3.5 px-3.5 font-bold text-white">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-7 h-7 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center text-[10px] font-sans font-black ${
-                                isPvd ? 'text-purple-400' : 'text-blue-400'
-                              }`}
-                            >
-                              {item.company.code}
-                            </span>
-                            <div>
-                              <div className="text-white font-bold leading-tight flex items-center gap-1.5 font-sans">
-                                <span>{item.company.name}</span>
-                                <span
-                                  className={`text-[9px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                                    isPvd
-                                      ? 'bg-purple-500/15 text-purple-400'
-                                      : 'bg-blue-500/15 text-blue-400'
-                                  }`}
-                                >
-                                  {isPvd ? 'PVD' : 'LASER'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Column 2: Billing (Base) */}
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-slate-100">
-                          ₹{item.billing.toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 3: Other Billing */}
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-cyan-400">
-                          ₹{(item.otherBilling || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 4: Including GST */}
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
-                          ₹{(item.billingWithGst || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 5: Total Billing = Billing with GST + Other Billing */}
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
-                          ₹{item.todayBilling.toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 6: Payment Collection */}
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
-                          ₹{(item.paymentCollection || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 7: Other Payment */}
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
-                          ₹{(item.otherPayment || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Column 8: Payment Received Date & Time */}
-                        <td className="py-3.5 px-3 text-center text-xs">
-                          {item.todayPayment > 0 ? (
-                            <div className="inline-flex flex-col items-center">
-                              <span className="text-slate-200 font-bold font-sans">
-                                {item.paymentReceivedAt ||
-                                  `${selectedDate.split('-').reverse().join('-')}, 04:00 PM`}
-                              </span>
-                              {item.paymentMode && (
-                                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-sans font-semibold">
-                                  {item.paymentMode.replace('_', ' ')}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500 italic font-sans text-xs">-</span>
-                          )}
-                        </td>
-
-                        {/* Column 9: Status */}
-                        <td className="py-3.5 px-3 text-center">
-                          {item.hasEntryToday ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              <CheckCircle2 className="w-3 h-3" /> Submitted
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              <Clock className="w-3 h-3" /> Pending
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Column 10: Action */}
-                        <td className="py-3.5 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => onEditCompany(item.company.id)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3 text-blue-400" />
-                            <span>Edit</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-                <tfoot>
-                  <tr className="bg-[#0b1329] border-t-2 border-blue-500/50 text-white font-bold text-xs">
-                    <td className="py-4 px-3.5 uppercase tracking-wider font-black flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
-                      {displayFooterTotal.label}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-white">
-                      ₹{displayFooterTotal.billing.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
-                      ₹{displayFooterTotal.otherBilling.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
-                      ₹{displayFooterTotal.billingWithGst.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
-                      ₹{(displayFooterTotal.billingWithGst + displayFooterTotal.otherBilling).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
-                      ₹{displayFooterTotal.paymentCollection.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
-                      ₹{displayFooterTotal.otherPayment.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      Live Timestamped
-                    </td>
-                    <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      {displayFooterTotal.statusText}
-                    </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs font-bold text-slate-400">Verified</span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            ) : (
-              // MONTHLY CUMULATIVE TABLE (NO NET BALANCER)
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-[#0b1329] text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <th className="py-3 px-3.5">Company Name</th>
-                    <th className="py-3 px-3 text-right">Billing (MTD)</th>
-                    <th className="py-3 px-3 text-right text-cyan-400">Other Billing (MTD)</th>
-                    <th className="py-3 px-3 text-right text-blue-400">Including GST (MTD)</th>
-                    <th className="py-3 px-3 text-right text-amber-400">Total Billing (MTD)</th>
-                    <th className="py-3 px-3 text-right text-emerald-400">Payment Collection (MTD)</th>
-                    <th className="py-3 px-3 text-right text-purple-400">Other Payment (MTD)</th>
-                    <th className="py-3 px-3 text-center">Collection %</th>
-                    <th className="py-3 px-3 text-center">Latest Payment Received At</th>
-                    <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filteredSummaries.map((item) => {
-                    const isPvd = isPvdCompany(item.company);
-                    return (
-                      <tr
-                        key={item.company.id}
-                        className="hover:bg-slate-800/40 transition-colors group"
-                      >
-                        <td className="py-3.5 px-3.5 font-bold text-white">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-7 h-7 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center text-[10px] font-sans font-black ${
-                                isPvd ? 'text-purple-400' : 'text-blue-400'
-                              }`}
-                            >
-                              {item.company.code}
-                            </span>
-                            <div>
-                              <div className="text-white font-bold leading-tight flex items-center gap-1.5 font-sans">
-                                <span>{item.company.name}</span>
-                                <span
-                                  className={`text-[9px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                                    isPvd
-                                      ? 'bg-purple-500/15 text-purple-400'
-                                      : 'bg-blue-500/15 text-blue-400'
-                                  }`}
-                                >
-                                  {isPvd ? 'PVD' : 'LASER'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-slate-100">
-                          ₹{item.monthBilling.toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-cyan-400">
-                          ₹{(item.monthOtherBilling || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-blue-400">
-                          ₹{(item.monthBillingWithGst || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Total Billing MTD = monthBillingWithGst + monthOtherBilling */}
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-amber-400">
-                          ₹{((item.monthBillingWithGst || 0) + (item.monthOtherBilling || 0)).toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-black font-sans text-emerald-400">
-                          ₹{(item.monthPaymentCollection || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-bold font-sans text-purple-400">
-                          ₹{(item.monthOtherPayment || 0).toLocaleString('en-IN')}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-center">
-                          <div className="inline-flex flex-col items-center gap-1">
-                            <span className="text-xs font-bold font-sans text-emerald-400">
-                              {item.collectionRate}%
-                            </span>
-                            <div className="w-16 bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                              <div
-                                className="bg-emerald-400 h-full rounded-full"
-                                style={{ width: `${Math.min(100, item.collectionRate)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-3 text-center text-xs text-slate-300 font-sans">
-                          {item.paymentReceivedAt ||
-                            `${selectedDate.split('-').reverse().join('-')}, 04:00 PM`}
-                        </td>
-
-                        <td className="py-3.5 px-3 text-center">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                            <CheckCircle2 className="w-3 h-3" /> Reconciled
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => onEditCompany(item.company.id)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3 text-blue-400" />
-                            <span>Edit</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-                <tfoot>
-                  <tr className="bg-[#0b1329] border-t-2 border-purple-500/50 text-white font-bold text-xs">
-                    <td className="py-4 px-3.5 uppercase tracking-wider font-black flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-ping" />
-                      {displayFooterTotal.label}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-white">
-                      ₹{displayFooterTotal.monthBilling.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-cyan-400">
-                      ₹{displayFooterTotal.monthOtherBilling.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-blue-400">
-                      ₹{displayFooterTotal.monthBillingWithGst.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-amber-400">
-                      ₹{(displayFooterTotal.monthBillingWithGst + displayFooterTotal.monthOtherBilling).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-emerald-400">
-                      ₹{displayFooterTotal.monthPaymentCollection.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-right font-sans text-sm font-black text-purple-400">
-                      ₹{displayFooterTotal.monthOtherPayment.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      {displayFooterTotal.collectionRate}%
-                    </td>
-                    <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      Live Timestamped
-                    </td>
-                    <td className="py-4 px-3 text-center text-xs text-slate-300">
-                      {displayFooterTotal.statusText}
-                    </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs font-bold text-slate-400">Verified</span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Password & Credential Modal for Super Admin */}
       {showAccountsModal && (

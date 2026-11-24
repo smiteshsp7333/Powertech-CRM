@@ -36,6 +36,7 @@ export default function DailyBillingLedgerTerminal() {
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [modalCompanyId, setModalCompanyId] = useState<string | undefined>(undefined);
+  const [dateAuthModalOpen, setDateAuthModalOpen] = useState(false);
 
   const syncFromCloud = async () => {
     try {
@@ -223,6 +224,8 @@ export default function DailyBillingLedgerTerminal() {
           setModalCompanyId(currentUser.companyId);
           setEntryModalOpen(true);
         }}
+        onOpenDateAuthModal={() => setDateAuthModalOpen(true)}
+        unlockedDatesCount={ledgerSettings.unlockedDates?.length || 0}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
@@ -249,6 +252,8 @@ export default function DailyBillingLedgerTerminal() {
               allowNov18Update: ledgerSettings.unlockedDates?.includes('2026-11-18'),
             }}
             onToggleNov18Permission={handleToggleNov18Permission}
+            showDateAuthModal={dateAuthModalOpen}
+            setShowDateAuthModal={setDateAuthModalOpen}
           />
         )}
       </main>
