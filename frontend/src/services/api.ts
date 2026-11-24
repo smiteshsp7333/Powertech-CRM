@@ -35,27 +35,46 @@ export class ApiError extends Error {
 }
 
 export const STORE_KEYS = {
-  ENQUIRIES: 'powertech_crm_prod_v2_enquiries',
-  QUOTATIONS: 'powertech_crm_prod_v2_quotations',
-  ORDERS: 'powertech_crm_prod_v2_orders',
-  DISPATCHES: 'powertech_crm_prod_v2_dispatches',
-  INVOICES: 'powertech_crm_prod_v2_invoices',
-  PURCHASES: 'powertech_crm_prod_v2_purchases',
-  DAILY_SUMMARY: 'powertech_crm_prod_v2_daily_summary',
-  CUSTOMERS: 'powertech_crm_prod_v2_customers',
-  SUPPLIERS: 'powertech_crm_prod_v2_suppliers',
+  ENQUIRIES: 'powertech_crm_clean_v3_enquiries',
+  QUOTATIONS: 'powertech_crm_clean_v3_quotations',
+  ORDERS: 'powertech_crm_clean_v3_orders',
+  DISPATCHES: 'powertech_crm_clean_v3_dispatches',
+  INVOICES: 'powertech_crm_clean_v3_invoices',
+  PURCHASES: 'powertech_crm_clean_v3_purchases',
+  DAILY_SUMMARY: 'powertech_crm_clean_v3_daily_summary',
+  CUSTOMERS: 'powertech_crm_clean_v3_customers',
+  SUPPLIERS: 'powertech_crm_clean_v3_suppliers',
 };
 
 let hasPurgedLegacy = false;
 function purgeLegacyDemoStores() {
   if (typeof window === 'undefined' || hasPurgedLegacy) return;
   try {
-    const versionKey = 'powertech_crm_prod_v2_initialized';
+    const versionKey = 'powertech_crm_clean_v3_purged';
     if (!localStorage.getItem(versionKey)) {
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith('powertech_demo_')) {
+        if (!k) continue;
+        // Strictly DO NOT touch billing ledger stores
+        if (k.includes('billing_ledger') || k.includes('group_billing') || k.includes('ledger')) {
+          continue;
+        }
+        if (
+          k.startsWith('powertech_demo_') ||
+          k.startsWith('powertech_crm_prod_') ||
+          k.startsWith('powertech_crm_prod_v2_') ||
+          k.startsWith('powertech_crm_v2_') ||
+          k.startsWith('powertech_crm_enquiries') ||
+          k.startsWith('powertech_crm_quotations') ||
+          k.startsWith('powertech_crm_orders') ||
+          k.startsWith('powertech_crm_dispatches') ||
+          k.startsWith('powertech_crm_invoices') ||
+          k.startsWith('powertech_crm_purchases') ||
+          k.startsWith('powertech_crm_daily_summary') ||
+          k.startsWith('powertech_crm_customers') ||
+          k.startsWith('powertech_crm_suppliers')
+        ) {
           keysToRemove.push(k);
         }
       }

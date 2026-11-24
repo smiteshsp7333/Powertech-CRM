@@ -1,9 +1,10 @@
 import { Enquiry } from '../../types';
 import { DEMO_ENQUIRIES } from '../../services/mockData';
 
-const REDIS_ENQUIRIES_KEY = 'powertech_crm_enquiries_prod_v2';
+const REDIS_ENQUIRIES_KEY = 'powertech_crm_enquiries_clean_v3';
 
 let serverEnquiriesMemoryCache: Enquiry[] | null = null;
+let hasPurgedOldRedisKeys = false;
 
 function getCredentials() {
   const url =
@@ -23,13 +24,26 @@ function getInitialEnquiries(): Enquiry[] {
   return [];
 }
 
-const DEMO_IDS = ['enq-1', 'enq-2', 'enq-3', 'enq-4'];
+const DEMO_NAMES = ['rajesh sharma', 'aditya deshmukh', 'apex solar', 'voltech'];
 
 export async function getCloudEnquiries(): Promise<Enquiry[]> {
   const { url, token } = getCredentials();
 
   if (url && token) {
     try {
+      // One-time deletion of legacy keys with demo data in Redis
+      if (!hasPurgedOldRedisKeys) {
+        hasPurgedOldRedisKeys = true;
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(['DEL', 'powertech_crm_enquiries_prod_v2', 'powertech_crm_enquiries_prod']),
+        }).catch(() => {});
+      }
+
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -46,7 +60,9 @@ export async function getCloudEnquiries(): Promise<Enquiry[]> {
           const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
           if (Array.isArray(parsed)) {
             const clean = parsed.filter(
-              (e: Enquiry) => !DEMO_IDS.includes(e.id) && e.customerName !== 'Rajesh Sharma'
+              (e: Enquiry) =>
+                !e.id.startsWith('enq-demo') &&
+                !DEMO_NAMES.some((dn) => e.customerName?.toLowerCase().includes(dn) || e.companyName?.toLowerCase().includes(dn))
             );
             serverEnquiriesMemoryCache = clean;
             return clean;

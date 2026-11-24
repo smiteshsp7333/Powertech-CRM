@@ -209,309 +209,34 @@ async function main() {
     });
   }
 
-  // 5. Seed Customers
-  const customer1 = await prisma.customer.create({
-    data: {
-      customerType: 'COMPANY',
-      name: 'Aditya Deshmukh',
-      companyName: 'Apex Solar Energy Ltd.',
-      phone: '9876543210',
-      email: 'procurement@apexsolar.com',
-      address: 'Plot 42, Hinjewadi Phase 2, Pune',
-      city: 'Pune',
-      state: 'Maharashtra',
-      pincode: '411057',
-      gstin: '27AABCA1234D1ZM',
-    },
-  });
+  // 5. Purge Any Legacy Dummy Business Records (Clean Slate for Production)
+  await prisma.payment.deleteMany({});
+  await prisma.invoiceItem.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.dispatchItem.deleteMany({});
+  await prisma.dispatch.deleteMany({});
+  await prisma.orderItem.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.quotationRevision.deleteMany({});
+  await prisma.quotationItem.deleteMany({});
+  await prisma.quotation.deleteMany({});
+  await prisma.enquiryTimeline.deleteMany({});
+  await prisma.enquiry.deleteMany({});
+  await prisma.purchase.deleteMany({});
+  await prisma.customer.deleteMany({});
+  await prisma.supplier.deleteMany({});
+  await prisma.dailyAdjustment.deleteMany({});
+  await prisma.dailySummaryLock.deleteMany({});
 
-  const customer2 = await prisma.customer.create({
-    data: {
-      customerType: 'INDIVIDUAL',
-      name: 'Rajesh Sharma',
-      companyName: null,
-      phone: '9823012345',
-      email: 'rajesh.sharma@gmail.com',
-      address: 'Flat 402, Green Valley Apartments, Andheri West',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      pincode: '400058',
-    },
-  });
-
-  // 6. Seed Supplier
-  const supplier1 = await prisma.supplier.create({
-    data: {
-      name: 'Vikram Mehta',
-      companyName: 'Voltech Transformers & Components Ltd.',
-      phone: '9898765432',
-      email: 'sales@voltechelec.com',
-      address: 'Sector 18, Industrial Estate, Thane West',
-      city: 'Thane',
-      state: 'Maharashtra',
-      pincode: '400604',
-      gstin: '27XYZPA5678B1ZQ',
-    },
-  });
-
-  // 7. Full Enquiry-to-Payment Demo Flow
-  const adminUser = createdUsers['admin@powertech.com'];
-  const salesUser = createdUsers['sales@powertech.com'];
-  const opsUser = createdUsers['operations@powertech.com'];
-  const acctUser = createdUsers['accounts@powertech.com'];
-
-  // 7.1 Enquiry
-  const enquiry = await prisma.enquiry.create({
-    data: {
-      enquiryNumber: 'ENQ-2026-00001',
-      customerId: customer1.id,
-      customerType: 'COMPANY',
-      customerName: customer1.companyName || customer1.name,
-      phone: customer1.phone,
-      address: customer1.address,
-      requirements: 'Supply and installation of 50kVA Three-Phase Industrial Online UPS System with 120V Battery Bank and Rack.',
-      remarks: 'Client requests quick turnaround within 14 working days.',
-      status: 'ORDER_PLACED',
-      assignedUserId: salesUser.id,
-      createdById: salesUser.id,
-      timeline: {
-        create: [
-          { action: 'CREATED', description: 'Enquiry recorded from client phone call.', performedBy: salesUser.name },
-          { action: 'STATUS_CHANGE', description: 'Status changed to Quotation Prepared.', performedBy: salesUser.name },
-          { action: 'STATUS_CHANGE', description: 'Quotation accepted and Order placed.', performedBy: salesUser.name },
-        ],
-      },
-    },
-  });
-
-  // 7.2 Quotation
-  const quotation = await prisma.quotation.create({
-    data: {
-      quotationNumber: 'QTN-2026-00001',
-      revisionNumber: 0,
-      fullNumber: 'QTN-2026-00001',
-      enquiryId: enquiry.id,
-      customerId: customer1.id,
-      subtotal: 350000,
-      discountType: 'PERCENT',
-      discountValue: 10,
-      discountAmount: 35000,
-      taxRate: 18,
-      taxAmount: 56700,
-      totalAmount: 371700,
-      specificationNotes: 'Industrial Grade 50kVA UPS, Pure Sine Wave, IGBT based, including Battery Stand & Interconnecting Cables.',
-      termsAndConditions: 'Validity: 30 days. Delivery: 10 to 14 days from PO. Warranty: 2 Years comprehensive onsite.',
-      status: 'CONVERTED_TO_ORDER',
-      createdById: salesUser.id,
-      items: {
-        create: [
-          {
-            itemDescription: '50kVA Three-Phase Online UPS System',
-            specification: '415V AC Input/Output, 0.9 PF, Microprocessor Controlled',
-            quantity: 1,
-            unit: 'Set',
-            rate: 250000,
-            amount: 250000,
-            sortOrder: 1,
-          },
-          {
-            itemDescription: '12V 100Ah VRLA SMF Battery Bank (Set of 10)',
-            specification: 'Deep discharge, sealed maintenance-free lead acid',
-            quantity: 1,
-            unit: 'Set',
-            rate: 85000,
-            amount: 85000,
-            sortOrder: 2,
-          },
-          {
-            itemDescription: 'Battery Rack, DC Isolator & Interlink Wiring Kit',
-            specification: 'Heavy duty powder-coated MS enclosure with safety breakers',
-            quantity: 1,
-            unit: 'Set',
-            rate: 15000,
-            amount: 15000,
-            sortOrder: 3,
-          },
-        ],
-      },
-    },
-  });
-
-  // 7.3 Order
-  const order = await prisma.order.create({
-    data: {
-      orderNumber: 'ORD-2026-00001',
-      enquiryId: enquiry.id,
-      quotationId: quotation.id,
-      customerId: customer1.id,
-      subtotal: 350000,
-      discountAmount: 35000,
-      taxAmount: 56700,
-      totalAmount: 371700,
-      agreedPaymentTerms: '50% advance on PO, 50% upon delivery inspection. Due within 30 days.',
-      dueDays: 30,
-      status: 'DELIVERED',
-      createdById: salesUser.id,
-      items: {
-        create: [
-          {
-            itemDescription: '50kVA Three-Phase Online UPS System',
-            specification: '415V AC Input/Output, 0.9 PF',
-            quantity: 1,
-            unit: 'Set',
-            rate: 250000,
-            amount: 250000,
-            dispatchedQty: 1,
-            sortOrder: 1,
-          },
-          {
-            itemDescription: '12V 100Ah VRLA SMF Battery Bank (Set of 10)',
-            specification: 'Deep discharge, sealed maintenance-free',
-            quantity: 1,
-            unit: 'Set',
-            rate: 85000,
-            amount: 85000,
-            dispatchedQty: 1,
-            sortOrder: 2,
-          },
-          {
-            itemDescription: 'Battery Rack, DC Isolator & Interlink Wiring Kit',
-            specification: 'Heavy duty powder-coated MS enclosure',
-            quantity: 1,
-            unit: 'Set',
-            rate: 15000,
-            amount: 15000,
-            dispatchedQty: 1,
-            sortOrder: 3,
-          },
-        ],
-      },
-    },
-    include: {
-      items: true,
-    },
-  });
-
-  // 7.4 Dispatch
-  const dispatch = await prisma.dispatch.create({
-    data: {
-      dispatchNumber: 'DSP-2026-00001',
-      orderId: order.id,
-      transportCourier: 'VRL Logistics Express',
-      trackingNumber: 'VRL-PUN-982144',
-      deliveryAddress: customer1.address,
-      expectedDeliveryDate: new Date(),
-      actualDeliveryDate: new Date(),
-      actualDeliveryTime: '14:30 IST',
-      deliveryStatus: 'DELIVERED',
-      remarks: 'Delivered in full. Goods received by Site In-charge Mr. Ramesh Patil in sound condition.',
-      createdById: opsUser.id,
-      items: {
-        create: order.items.map((oi) => ({
-          orderItemId: oi.id,
-          quantity: oi.quantity,
-        })),
-      },
-    },
-  });
-
-  // 7.5 Invoice
-  const invoice = await prisma.invoice.create({
-    data: {
-      invoiceNumber: 'INV-2026-27-00001',
-      invoiceType: 'SYSTEM_GENERATED',
-      orderId: order.id,
-      customerId: customer1.id,
-      customerGstin: customer1.gstin,
-      placeOfSupply: 'Maharashtra (27)',
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      subtotal: 350000,
-      discountAmount: 35000,
-      cgstRate: 9,
-      cgstAmount: 28350,
-      sgstRate: 9,
-      sgstAmount: 28350,
-      igstRate: 0,
-      igstAmount: 0,
-      taxAmount: 56700,
-      totalAmount: 371700,
-      amountReceived: 185850,
-      balanceAmount: 185850,
-      paymentStatus: 'PARTIALLY_PAID',
-      paymentTerms: '50% advance received, balance payable within 30 days.',
-      isLocked: true,
-      createdById: acctUser.id,
-      items: {
-        create: [
-          {
-            itemDescription: '50kVA Three-Phase Online UPS System',
-            hsnSacCode: '85044090',
-            quantity: 1,
-            unit: 'Set',
-            rate: 250000,
-            amount: 250000,
-          },
-          {
-            itemDescription: '12V 100Ah VRLA SMF Battery Bank',
-            hsnSacCode: '85072000',
-            quantity: 1,
-            unit: 'Set',
-            rate: 85000,
-            amount: 85000,
-          },
-          {
-            itemDescription: 'Battery Rack and Accessories',
-            hsnSacCode: '85049090',
-            quantity: 1,
-            unit: 'Set',
-            rate: 15000,
-            amount: 15000,
-          },
-        ],
-      },
-    },
-  });
-
-  // 7.6 Payment (Advance part-payment)
-  await prisma.payment.create({
-    data: {
-      receiptNumber: 'REC-2026-00001',
-      invoiceId: invoice.id,
-      paymentMode: 'BANK_TRANSFER',
-      amountReceived: 185850,
-      referenceNumber: 'NEFT-HDFC-99281745',
-      bankName: 'HDFC Bank Ltd.',
-      remarks: '50% advance against Order ORD-2026-00001.',
-      receivedById: acctUser.id,
-    },
-  });
-
-  // 7.7 Purchase Record
-  await prisma.purchase.create({
-    data: {
-      purchaseNumber: 'PUR-2026-00001',
-      supplierId: supplier1.id,
-      supplierBillNo: 'VOL/2026/8841',
-      description: 'Procurement of copper coils and IGBT semiconductors for UPS assembly',
-      category: 'RAW_MATERIAL',
-      subtotal: 120000,
-      taxRate: 18,
-      taxAmount: 21600,
-      totalAmount: 141600,
-      paymentStatus: 'PAID',
-      createdById: createdUsers['purchase@powertech.com'].id,
-    },
-  });
-
-  // 8. Initialize NumberSequences
+  // 6. Initialize NumberSequences (Starting from 0 for fresh sequence generation)
   const sequences = [
-    { module: 'ENQUIRY', prefix: 'ENQ', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'QUOTATION', prefix: 'QTN', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'ORDER', prefix: 'ORD', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'DISPATCH', prefix: 'DSP', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'INVOICE', prefix: 'INV', year: '2026-27', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'PAYMENT', prefix: 'REC', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
-    { module: 'PURCHASE', prefix: 'PUR', year: '2026', lastSequence: 1, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'ENQUIRY', prefix: 'ENQ', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'QUOTATION', prefix: 'QTN', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'ORDER', prefix: 'ORD', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'DISPATCH', prefix: 'DSP', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'INVOICE', prefix: 'INV', year: '2026-27', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'PAYMENT', prefix: 'REC', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
+    { module: 'PURCHASE', prefix: 'PUR', year: '2026', lastSequence: 0, formatPattern: '{PREFIX}-{YEAR}-{SEQ:5}' },
   ];
 
   for (const seq of sequences) {
