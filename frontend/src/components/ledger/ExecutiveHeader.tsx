@@ -147,7 +147,7 @@ export default function ExecutiveHeader({
                 onClick={() => setActiveView('MONTHLY')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   activeView === 'MONTHLY'
-                    ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
+                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -156,36 +156,39 @@ export default function ExecutiveHeader({
             </div>
           )}
 
-          {/* Historical Date Entry Authorization Round Tab (Super Admin Only) */}
-          {isSuperAdmin && onOpenDateAuthModal && (
-            <button
-              type="button"
-              onClick={onOpenDateAuthModal}
-              title="Historical Date Authorization"
-              className="px-3.5 py-2 rounded-full bg-purple-600/20 hover:bg-purple-600/35 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-md shadow-purple-600/15 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
-              <span>Date Access</span>
-              {unlockedDatesCount > 0 ? (
-                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px]">
-                  {unlockedDatesCount}
-                </span>
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-slate-500" />
-              )}
-            </button>
-          )}
+          {/* Action Buttons Group (Update Daily Entry + Date Access) */}
+          <div className="flex items-center gap-2">
+            {/* Record Daily Entry Button (RED as requested) */}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={onOpenEntryModal}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-lg shadow-red-600/25 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              >
+                <span>+ Update Daily Entry</span>
+              </button>
+            )}
 
-          {/* Record Daily Entry Button (RED as requested) */}
-          {isSuperAdmin && (
-            <button
-              type="button"
-              onClick={onOpenEntryModal}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-lg shadow-red-600/25 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <span>+ Update Daily Entry</span>
-            </button>
-          )}
+            {/* Historical Date Entry Authorization Round Tab (Super Admin Only) */}
+            {isSuperAdmin && onOpenDateAuthModal && (
+              <button
+                type="button"
+                onClick={onOpenDateAuthModal}
+                title="Historical Date Authorization"
+                className="px-3.5 py-2 rounded-full bg-purple-600/20 hover:bg-purple-600/35 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-md shadow-purple-600/15 transition-all flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                <span>Date Access</span>
+                {unlockedDatesCount > 0 ? (
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px]">
+                    {unlockedDatesCount}
+                  </span>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-slate-500" />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>

@@ -805,9 +805,9 @@ export default function MasterConsolidatedView({
           {/* Column Headers for Sidebar (Bill & Collection) */}
           <div className="flex items-center justify-between px-2 pt-2 pb-1 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
             <span>Company</span>
-            <div className="flex items-center gap-3 text-right">
-              <span className="w-16 text-right text-blue-400 font-black">Bill</span>
-              <span className="w-16 text-right text-emerald-400 font-black">Collection</span>
+            <div className="w-[210px] shrink-0 grid grid-cols-2 gap-2 text-right">
+              <span className="text-right text-blue-400 font-black">Bill</span>
+              <span className="text-right text-emerald-400 font-black">Collection</span>
             </div>
           </div>
 
@@ -827,27 +827,27 @@ export default function MasterConsolidatedView({
                   key={s.company.id}
                   type="button"
                   onClick={() => setSelectedCompanyFilter(isSelected ? null : s.company.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs cursor-pointer ${
+                  className={`w-full text-left px-2.5 py-2.5 rounded-xl transition-all flex items-center justify-between text-xs cursor-pointer ${
                     isSelected
                       ? 'bg-slate-800 text-white font-bold border border-slate-700'
                       : 'text-slate-300 hover:text-white hover:bg-slate-900/70'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 mr-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <span
                       className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                         s.hasEntryToday ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}
                     />
-                    <span className="font-sans font-bold text-xs text-white tracking-wide">
+                    <span className="font-sans font-bold text-xs text-white truncate">
                       {s.company.shortName || s.company.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="w-16 text-right text-xs font-black font-sans text-blue-400">
+                  <div className="w-[210px] shrink-0 grid grid-cols-2 gap-2 text-right items-center">
+                    <span className="text-right text-xs font-black font-sans text-blue-400 truncate">
                       ₹{companyBill.toLocaleString('en-IN')}
                     </span>
-                    <span className="w-16 text-right text-xs font-black font-sans text-emerald-400">
+                    <span className="text-right text-xs font-black font-sans text-emerald-400 truncate">
                       ₹{companyCollection.toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -857,15 +857,15 @@ export default function MasterConsolidatedView({
           </div>
 
           {/* Total at bottom of sidebar list */}
-          <div className="pt-2.5 pb-2 border-t-2 border-slate-700/80 px-3 flex items-center justify-between text-xs bg-[#0b1329]/95 rounded-xl">
-            <span className="font-black uppercase tracking-wider text-slate-100 text-xs">
+          <div className="pt-2.5 pb-2 border-t-2 border-slate-700/80 px-2.5 flex items-center justify-between text-xs bg-[#0b1329]/95 rounded-xl">
+            <span className="font-black uppercase tracking-wider text-slate-100 text-xs flex-1">
               Total
             </span>
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="w-16 text-right text-xs font-black font-sans text-blue-400">
+            <div className="w-[210px] shrink-0 grid grid-cols-2 gap-2 text-right items-center">
+              <span className="text-right text-xs font-black font-sans text-blue-400 truncate">
                 ₹{currentListTotalBill.toLocaleString('en-IN')}
               </span>
-              <span className="w-16 text-right text-xs font-black font-sans text-emerald-400">
+              <span className="text-right text-xs font-black font-sans text-emerald-400 truncate">
                 ₹{currentListTotalCollection.toLocaleString('en-IN')}
               </span>
             </div>
